@@ -83,11 +83,10 @@ void nsMenuGroupOwnerX::CharacterDataChanged(nsIDocument* aDocument,
 
 void nsMenuGroupOwnerX::ContentAppended(nsIDocument* aDocument,
                                         nsIContent* aContainer,
-                                        nsIContent* aFirstNewContent,
-                                        int32_t /* unused */)
+                                        nsIContent* aFirstNewContent)
 {
   for (nsIContent* cur = aFirstNewContent; cur; cur = cur->GetNextSibling()) {
-    ContentInserted(aDocument, aContainer, cur, 0);
+    ContentInserted(aDocument, aContainer, cur);
   }
 }
 
@@ -129,17 +128,16 @@ void nsMenuGroupOwnerX::AttributeChanged(nsIDocument* aDocument,
 void nsMenuGroupOwnerX::ContentRemoved(nsIDocument * aDocument,
                                        nsIContent * aContainer,
                                        nsIContent * aChild,
-                                       int32_t aIndexInContainer,
                                        nsIContent * aPreviousSibling)
 {
   if (!aContainer) {
     return;
   }
-
+  int32_t index = aContainer->IndexOf(aChild) + 1;
   nsCOMPtr<nsIMutationObserver> kungFuDeathGrip(this);
   nsChangeObserver* obs = LookupContentChangeObserver(aContainer);
   if (obs)
-    obs->ObserveContentRemoved(aDocument, aChild, aIndexInContainer);
+    obs->ObserveContentRemoved(aDocument, aChild, index);
   else if (aContainer != mContent) {
     // We do a lookup on the parent container in case things were removed
     // under a "menupopup" item. That is basically a wrapper for the contents
@@ -148,7 +146,7 @@ void nsMenuGroupOwnerX::ContentRemoved(nsIDocument * aDocument,
     if (parent) {
       obs = LookupContentChangeObserver(parent);
       if (obs)
-        obs->ObserveContentRemoved(aDocument, aChild, aIndexInContainer);
+        obs->ObserveContentRemoved(aDocument, aChild, index);
     }
   }
 }
@@ -156,8 +154,7 @@ void nsMenuGroupOwnerX::ContentRemoved(nsIDocument * aDocument,
 
 void nsMenuGroupOwnerX::ContentInserted(nsIDocument * aDocument,
                                         nsIContent * aContainer,
-                                        nsIContent * aChild,
-                                        int32_t /* unused */)
+                                        nsIContent * aChild)
 {
   if (!aContainer) {
     return;

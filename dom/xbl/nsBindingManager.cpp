@@ -816,12 +816,9 @@ InsertAppendedContent(XBLChildrenElement* aPoint,
 void
 nsBindingManager::ContentAppended(nsIDocument* aDocument,
                                   nsIContent* aContainer,
-                                  nsIContent* aFirstNewContent,
-                                  int32_t     aNewIndexInContainer)
+                                  nsIContent* aFirstNewContent)
 {
-  if (aNewIndexInContainer == -1) {
-    return;
-  }
+  MOZ_ASSERT(NODE_FROM(aContainer, aDocument)->IndexOf(aFirstNewContent) >= 0);
 
   // Try to find insertion points for all the new kids.
   XBLChildrenElement* point = nullptr;
@@ -852,11 +849,9 @@ nsBindingManager::ContentAppended(nsIDocument* aDocument,
       // We could optimize this in the case when we've nested a few levels
       // deep already, without hitting bindings that have filtered insertion
       // points.
-      int32_t currentIndex = aNewIndexInContainer;
       for (nsIContent* currentChild = aFirstNewContent; currentChild;
            currentChild = currentChild->GetNextSibling()) {
-        HandleChildInsertion(aContainer, currentChild,
-                             currentIndex++, true);
+        HandleChildInsertion(aContainer, currentChild, true);
       }
 
       return;
@@ -891,21 +886,17 @@ nsBindingManager::ContentAppended(nsIDocument* aDocument,
 void
 nsBindingManager::ContentInserted(nsIDocument* aDocument,
                                   nsIContent* aContainer,
-                                  nsIContent* aChild,
-                                  int32_t aIndexInContainer)
+                                  nsIContent* aChild)
 {
-  if (aIndexInContainer == -1) {
-    return;
-  }
 
-  HandleChildInsertion(aContainer, aChild, aIndexInContainer, false);
+  MOZ_ASSERT(NODE_FROM(aContainer, aDocument)->IndexOf(aChild) >= 0);
+  HandleChildInsertion(aContainer, aChild, false);
 }
 
 void
 nsBindingManager::ContentRemoved(nsIDocument* aDocument,
                                  nsIContent* aContainer,
                                  nsIContent* aChild,
-                                 int32_t aIndexInContainer,
                                  nsIContent* aPreviousSibling)
 {
   aChild->SetXBLInsertionParent(nullptr);
@@ -1017,13 +1008,10 @@ nsBindingManager::Traverse(nsIContent *aContent,
 void
 nsBindingManager::HandleChildInsertion(nsIContent* aContainer,
                                        nsIContent* aChild,
-                                       uint32_t aIndexInContainer,
                                        bool aAppend)
 {
-  NS_PRECONDITION(aChild, "Must have child");
-  NS_PRECONDITION(!aContainer ||
-                  uint32_t(aContainer->IndexOf(aChild)) == aIndexInContainer,
-                  "Child not at the right index?");
+  MOZ_ASSERT(aChild, "Must have child");
+  MOZ_ASSERT(!aContainer || aChild->GetParent() == aContainer);
 
   XBLChildrenElement* point = nullptr;
   nsIContent* parent = aContainer;

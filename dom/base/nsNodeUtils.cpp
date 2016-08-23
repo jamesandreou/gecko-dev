@@ -159,14 +159,12 @@ nsNodeUtils::AttributeSetToCurrentValue(Element* aElement,
 
 void
 nsNodeUtils::ContentAppended(nsIContent* aContainer,
-                             nsIContent* aFirstNewContent,
-                             int32_t aNewIndexInContainer)
+                             nsIContent* aFirstNewContent)
 {
   nsIDocument* doc = aContainer->OwnerDoc();
 
   IMPL_MUTATION_NOTIFICATION(ContentAppended, aContainer,
-                             (doc, aContainer, aFirstNewContent,
-                              aNewIndexInContainer));
+                             (doc, aContainer, aFirstNewContent));
 }
 
 void
@@ -180,8 +178,7 @@ nsNodeUtils::NativeAnonymousChildListChange(nsIContent* aContent,
 
 void
 nsNodeUtils::ContentInserted(nsINode* aContainer,
-                             nsIContent* aChild,
-                             int32_t aIndexInContainer)
+                             nsIContent* aChild)
 {
   NS_PRECONDITION(aContainer->IsNodeOfType(nsINode::eCONTENT) ||
                   aContainer->IsNodeOfType(nsINode::eDOCUMENT),
@@ -199,13 +196,12 @@ nsNodeUtils::ContentInserted(nsINode* aContainer,
   }
 
   IMPL_MUTATION_NOTIFICATION(ContentInserted, aContainer,
-                             (document, container, aChild, aIndexInContainer));
+                             (document, container, aChild));
 }
 
 void
 nsNodeUtils::ContentRemoved(nsINode* aContainer,
                             nsIContent* aChild,
-                            int32_t aIndexInContainer,
                             nsIContent* aPreviousSibling)
 {
   NS_PRECONDITION(aContainer->IsNodeOfType(nsINode::eCONTENT) ||
@@ -224,7 +220,7 @@ nsNodeUtils::ContentRemoved(nsINode* aContainer,
   }
 
   IMPL_MUTATION_NOTIFICATION(ContentRemoved, aContainer,
-                             (document, container, aChild, aIndexInContainer,
+                             (document, container, aChild,
                               aPreviousSibling));
 }
 

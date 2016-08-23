@@ -3211,28 +3211,23 @@ HTMLEditor::InsertTextImpl(const nsAString& aStringToInsert,
 void
 HTMLEditor::ContentAppended(nsIDocument* aDocument,
                             nsIContent* aContainer,
-                            nsIContent* aFirstNewContent,
-                            int32_t aIndexInContainer)
+                            nsIContent* aFirstNewContent)
 {
-  DoContentInserted(aDocument, aContainer, aFirstNewContent, aIndexInContainer,
-                    eAppended);
+  DoContentInserted(aDocument, aContainer, aFirstNewContent, eAppended);
 }
 
 void
 HTMLEditor::ContentInserted(nsIDocument* aDocument,
                             nsIContent* aContainer,
-                            nsIContent* aChild,
-                            int32_t aIndexInContainer)
+                            nsIContent* aChild)
 {
-  DoContentInserted(aDocument, aContainer, aChild, aIndexInContainer,
-                    eInserted);
+  DoContentInserted(aDocument, aContainer, aChild, eInserted);
 }
 
 void
 HTMLEditor::DoContentInserted(nsIDocument* aDocument,
                               nsIContent* aContainer,
                               nsIContent* aChild,
-                              int32_t aIndexInContainer,
                               InsertedOrAppended aInsertedOrAppended)
 {
   if (!aChild) {
@@ -3241,12 +3236,14 @@ HTMLEditor::DoContentInserted(nsIDocument* aDocument,
 
   nsCOMPtr<nsIHTMLEditor> kungFuDeathGrip(this);
 
+  nsINode* container = NODE_FROM(aContainer, aDocument);
+
   if (ShouldReplaceRootElement()) {
     nsContentUtils::AddScriptRunner(NewRunnableMethod(
       this, &HTMLEditor::ResetRootElementAndEventTarget));
   }
   // We don't need to handle our own modifications
-  else if (!mAction && (aContainer ? aContainer->IsEditable() : aDocument->IsEditable())) {
+  else if (!mAction && container->IsEditable()) {
     if (IsMozEditorBogusNode(aChild)) {
       // Ignore insertion of the bogus node
       return;
@@ -3258,7 +3255,8 @@ HTMLEditor::DoContentInserted(nsIDocument* aDocument,
     // Update spellcheck for only the newly-inserted node (bug 743819)
     if (mInlineSpellChecker) {
       RefPtr<nsRange> range = new nsRange(aChild);
-      int32_t endIndex = aIndexInContainer + 1;
+      int32_t index = container->IndexOf(aChild);
+      int32_t endIndex = index + 1;
       if (aInsertedOrAppended == eAppended) {
         // Count all the appended nodes
         nsIContent* sibling = aChild->GetNextSibling();
@@ -3267,7 +3265,7 @@ HTMLEditor::DoContentInserted(nsIDocument* aDocument,
           sibling = sibling->GetNextSibling();
         }
       }
-      nsresult res = range->Set(aContainer, aIndexInContainer,
+      nsresult res = range->Set(aContainer, index,
                                 aContainer, endIndex);
       if (NS_SUCCEEDED(res)) {
         mInlineSpellChecker->SpellCheckRange(range);
@@ -3280,7 +3278,6 @@ void
 HTMLEditor::ContentRemoved(nsIDocument* aDocument,
                            nsIContent* aContainer,
                            nsIContent* aChild,
-                           int32_t aIndexInContainer,
                            nsIContent* aPreviousSibling)
 {
   nsCOMPtr<nsIHTMLEditor> kungFuDeathGrip(this);

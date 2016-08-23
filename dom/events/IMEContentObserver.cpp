@@ -979,28 +979,27 @@ IMEContentObserver::NotifyContentAdded(nsINode* aContainer,
 void
 IMEContentObserver::ContentAppended(nsIDocument* aDocument,
                                     nsIContent* aContainer,
-                                    nsIContent* aFirstNewContent,
-                                    int32_t aNewIndexInContainer)
+                                    nsIContent* aFirstNewContent)
 {
-  NotifyContentAdded(aContainer, aNewIndexInContainer,
-                     aContainer->GetChildCount());
+  nsINode* container = NODE_FROM(aContainer, aDocument);
+  int32_t ind = container->IndexOf(aFirstNewContent);
+  NotifyContentAdded(aContainer, ind, aContainer->GetChildCount());
 }
 
 void
 IMEContentObserver::ContentInserted(nsIDocument* aDocument,
                                     nsIContent* aContainer,
-                                    nsIContent* aChild,
-                                    int32_t aIndexInContainer)
+                                    nsIContent* aChild)
 {
-  NotifyContentAdded(NODE_FROM(aContainer, aDocument),
-                     aIndexInContainer, aIndexInContainer + 1);
+  nsINode* container = NODE_FROM(aContainer, aDocument);
+  int32_t ind = container->IndexOf(aChild);
+  NotifyContentAdded(container, ind, ind + 1);
 }
 
 void
 IMEContentObserver::ContentRemoved(nsIDocument* aDocument,
                                    nsIContent* aContainer,
                                    nsIContent* aChild,
-                                   int32_t aIndexInContainer,
                                    nsIContent* aPreviousSibling)
 {
   mEndOfAddedTextCache.Clear();
@@ -1009,18 +1008,19 @@ IMEContentObserver::ContentRemoved(nsIDocument* aDocument,
 
   uint32_t offset = 0;
   nsresult rv = NS_OK;
-  if (!mStartOfRemovingTextRangeCache.Match(containerNode, aIndexInContainer)) {
+  int32_t index = containerNode->IndexOf(aPreviousSibling) + 1;
+  if (!mStartOfRemovingTextRangeCache.Match(containerNode, index)) {
     // At removing a child node of aContainer, we need the line break caused
-    // by open tag of aContainer.  Be careful when aIndexInContainer is 0.
+    // by open tag of aContainer.  Be careful when index is 0.
     rv = ContentEventHandler::GetFlatTextLengthInRange(
                                 NodePosition(mRootContent, 0),
-                                NodePosition(containerNode, aIndexInContainer),
+                                NodePosition(containerNode, index),
                                 mRootContent, &offset, LINE_BREAK_TYPE_NATIVE);
     if (NS_WARN_IF(NS_FAILED(rv))) {
       mStartOfRemovingTextRangeCache.Clear();
       return;
     }
-    mStartOfRemovingTextRangeCache.Cache(containerNode, aIndexInContainer,
+    mStartOfRemovingTextRangeCache.Cache(containerNode, index,
                                          offset);
   } else {
     offset = mStartOfRemovingTextRangeCache.mFlatTextLength;

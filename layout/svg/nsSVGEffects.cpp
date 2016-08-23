@@ -136,8 +136,7 @@ nsSVGRenderingObserver::AttributeChanged(nsIDocument* aDocument,
 void
 nsSVGRenderingObserver::ContentAppended(nsIDocument* aDocument,
                                         nsIContent* aContainer,
-                                        nsIContent* aFirstNewContent,
-                                        int32_t /* unused */)
+                                        nsIContent* aFirstNewContent)
 {
   DoUpdate();
 }
@@ -145,8 +144,7 @@ nsSVGRenderingObserver::ContentAppended(nsIDocument* aDocument,
 void
 nsSVGRenderingObserver::ContentInserted(nsIDocument* aDocument,
                                         nsIContent* aContainer,
-                                        nsIContent* aChild,
-                                        int32_t /* unused */)
+                                        nsIContent* aChild)
 {
   DoUpdate();
 }
@@ -155,7 +153,6 @@ void
 nsSVGRenderingObserver::ContentRemoved(nsIDocument* aDocument,
                                        nsIContent* aContainer,
                                        nsIContent* aChild,
-                                       int32_t aIndexInContainer,
                                        nsIContent* aPreviousSibling)
 {
   DoUpdate();

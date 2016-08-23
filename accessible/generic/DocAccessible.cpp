@@ -1061,8 +1061,7 @@ DocAccessible::ARIAActiveDescendantChanged(Accessible* aAccessible)
 void
 DocAccessible::ContentAppended(nsIDocument* aDocument,
                                nsIContent* aContainer,
-                               nsIContent* aFirstNewContent,
-                               int32_t /* unused */)
+                               nsIContent* aFirstNewContent)
 {
 }
 
@@ -1128,30 +1127,28 @@ DocAccessible::CharacterDataChanged(nsIDocument* aDocument,
 
 void
 DocAccessible::ContentInserted(nsIDocument* aDocument, nsIContent* aContainer,
-                               nsIContent* aChild, int32_t /* unused */)
+                               nsIContent* aChild)
 {
 }
 
 void
-DocAccessible::ContentRemoved(nsIDocument* aDocument,
-                              nsIContent* aContainerNode,
-                              nsIContent* aChildNode, int32_t /* unused */,
-                              nsIContent* aPreviousSiblingNode)
+DocAccessible::ContentRemoved(nsIDocument* aDocument, nsIContent* aContainer,
+                              nsIContent* aChild, nsIContent* aPreviousSibling)
 {
 #ifdef A11Y_LOG
   if (logging::IsEnabled(logging::eTree)) {
     logging::MsgBegin("TREE", "DOM content removed; doc: %p", this);
-    logging::Node("container node", aContainerNode);
-    logging::Node("content node", aChildNode);
+    logging::Node("container node", aContainer);
+    logging::Node("content node", aChild);
     logging::MsgEnd();
   }
 #endif
   // This one and content removal notification from layout may result in
   // double processing of same subtrees. If it pops up in profiling, then
   // consider reusing a document node cache to reject these notifications early.
-  Accessible* container = GetAccessibleOrContainer(aContainerNode);
+  Accessible* container = GetAccessibleOrContainer(aContainer);
   if (container) {
-    UpdateTreeOnRemoval(container, aChildNode);
+    UpdateTreeOnRemoval(container, aChild);
   }
 }
 

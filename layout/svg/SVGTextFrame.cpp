@@ -3318,8 +3318,7 @@ NS_IMPL_ISUPPORTS(SVGTextFrame::MutationObserver, nsIMutationObserver)
 void
 SVGTextFrame::MutationObserver::ContentAppended(nsIDocument* aDocument,
                                                 nsIContent* aContainer,
-                                                nsIContent* aFirstNewContent,
-                                                int32_t aNewIndexInContainer)
+                                                nsIContent* aFirstNewContent)
 {
   mFrame->NotifyGlyphMetricsChange();
 }
@@ -3328,8 +3327,7 @@ void
 SVGTextFrame::MutationObserver::ContentInserted(
                                         nsIDocument* aDocument,
                                         nsIContent* aContainer,
-                                        nsIContent* aChild,
-                                        int32_t aIndexInContainer)
+                                        nsIContent* aChild)
 {
   mFrame->NotifyGlyphMetricsChange();
 }
@@ -3339,7 +3337,6 @@ SVGTextFrame::MutationObserver::ContentRemoved(
                                        nsIDocument *aDocument,
                                        nsIContent* aContainer,
                                        nsIContent* aChild,
-                                       int32_t aIndexInContainer,
                                        nsIContent* aPreviousSibling)
 {
   mFrame->NotifyGlyphMetricsChange();

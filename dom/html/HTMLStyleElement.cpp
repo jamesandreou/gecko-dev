@@ -103,8 +103,7 @@ HTMLStyleElement::CharacterDataChanged(nsIDocument* aDocument,
 void
 HTMLStyleElement::ContentAppended(nsIDocument* aDocument,
                                   nsIContent* aContainer,
-                                  nsIContent* aFirstNewContent,
-                                  int32_t aNewIndexInContainer)
+                                  nsIContent* aFirstNewContent)
 {
   ContentChanged(aContainer);
 }
@@ -112,8 +111,7 @@ HTMLStyleElement::ContentAppended(nsIDocument* aDocument,
 void
 HTMLStyleElement::ContentInserted(nsIDocument* aDocument,
                                   nsIContent* aContainer,
-                                  nsIContent* aChild,
-                                  int32_t aIndexInContainer)
+                                  nsIContent* aChild)
 {
   ContentChanged(aChild);
 }
@@ -122,7 +120,6 @@ void
 HTMLStyleElement::ContentRemoved(nsIDocument* aDocument,
                                  nsIContent* aContainer,
                                  nsIContent* aChild,
-                                 int32_t aIndexInContainer,
                                  nsIContent* aPreviousSibling)
 {
   ContentChanged(aChild);

@@ -180,8 +180,7 @@ protected:
   // insertion.  aChild must not be null.  aContainer may be null.
   // aIndexInContainer is the index of the child in the parent.  aAppend is
   // true if this child is being appended, not inserted.
-  void HandleChildInsertion(nsIContent* aContainer, nsIContent* aChild,
-                            uint32_t aIndexInContainer, bool aAppend);
+  void HandleChildInsertion(nsIContent* aContainer, nsIContent* aChild, bool aAppend);
 
   // Same as ProcessAttachedQueue, but also nulls out
   // mProcessAttachedQueueEvent

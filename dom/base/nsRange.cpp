@@ -609,8 +609,7 @@ nsRange::CharacterDataChanged(nsIDocument* aDocument,
 void
 nsRange::ContentAppended(nsIDocument* aDocument,
                          nsIContent*  aContainer,
-                         nsIContent*  aFirstNewContent,
-                         int32_t      aNewIndexInContainer)
+                         nsIContent*  aFirstNewContent)
 {
   NS_ASSERTION(mIsPositioned, "shouldn't be notified if not positioned");
 
@@ -627,7 +626,8 @@ nsRange::ContentAppended(nsIDocument* aDocument,
   }
 
   if (mStartOffsetWasIncremented || mEndOffsetWasIncremented) {
-    MOZ_ASSERT(mAssertNextInsertOrAppendIndex == aNewIndexInContainer);
+    MOZ_ASSERT(mAssertNextInsertOrAppendIndex ==
+               container->IndexOf(aFirstNewContent));
     MOZ_ASSERT(mAssertNextInsertOrAppendNode == aFirstNewContent);
     MOZ_ASSERT(aFirstNewContent->IsNodeOfType(nsINode::eDATA_NODE));
     mStartOffsetWasIncremented = mEndOffsetWasIncremented = false;
@@ -641,19 +641,19 @@ nsRange::ContentAppended(nsIDocument* aDocument,
 void
 nsRange::ContentInserted(nsIDocument* aDocument,
                          nsIContent* aContainer,
-                         nsIContent* aChild,
-                         int32_t aIndexInContainer)
+                         nsIContent* aChild)
 {
   NS_ASSERTION(mIsPositioned, "shouldn't be notified if not positioned");
 
   nsINode* container = NODE_FROM(aContainer, aDocument);
+  int32_t index = container->IndexOf(aChild);
 
   // Adjust position if a sibling was inserted.
-  if (container == mStartParent && aIndexInContainer < mStartOffset &&
+  if (container == mStartParent && index < mStartOffset &&
       !mStartOffsetWasIncremented) {
     ++mStartOffset;
   }
-  if (container == mEndParent && aIndexInContainer < mEndOffset &&
+  if (container == mEndParent && index < mEndOffset &&
       !mEndOffsetWasIncremented) {
     ++mEndOffset;
   }
@@ -664,7 +664,7 @@ nsRange::ContentInserted(nsIDocument* aDocument,
   }
 
   if (mStartOffsetWasIncremented || mEndOffsetWasIncremented) {
-    MOZ_ASSERT(mAssertNextInsertOrAppendIndex == aIndexInContainer);
+    MOZ_ASSERT(mAssertNextInsertOrAppendIndex == index);
     MOZ_ASSERT(mAssertNextInsertOrAppendNode == aChild);
     MOZ_ASSERT(aChild->IsNodeOfType(nsINode::eDATA_NODE));
     mStartOffsetWasIncremented = mEndOffsetWasIncremented = false;
@@ -679,7 +679,6 @@ void
 nsRange::ContentRemoved(nsIDocument* aDocument,
                         nsIContent* aContainer,
                         nsIContent* aChild,
-                        int32_t aIndexInContainer,
                         nsIContent* aPreviousSibling)
 {
   NS_ASSERTION(mIsPositioned, "shouldn't be notified if not positioned");
@@ -688,13 +687,15 @@ nsRange::ContentRemoved(nsIDocument* aDocument,
              "splitText failed to notify insert/append?");
 
   nsINode* container = NODE_FROM(aContainer, aDocument);
+  int32_t index = container->IndexOf(aPreviousSibling) + 1;
+
   bool gravitateStart = false;
   bool gravitateEnd = false;
   bool didCheckStartParentDescendant = false;
 
   // Adjust position if a sibling was removed...
   if (container == mStartParent) {
-    if (aIndexInContainer < mStartOffset) {
+    if (index < mStartOffset) {
       --mStartOffset;
     }
   } else { // ...or gravitate if an ancestor was removed.
@@ -704,7 +705,7 @@ nsRange::ContentRemoved(nsIDocument* aDocument,
 
   // Do same thing for end boundry.
   if (container == mEndParent) {
-    if (aIndexInContainer < mEndOffset) {
+    if (index < mEndOffset) {
       --mEndOffset;
     }
   } else if (didCheckStartParentDescendant && mStartParent == mEndParent) {
@@ -720,9 +721,9 @@ nsRange::ContentRemoved(nsIDocument* aDocument,
 
   if (gravitateStart || gravitateEnd) {
     DoSetRange(gravitateStart ? container : mStartParent.get(),
-               gravitateStart ? aIndexInContainer : mStartOffset,
+               gravitateStart ? index : mStartOffset,
                gravitateEnd ? container : mEndParent.get(),
-               gravitateEnd ? aIndexInContainer : mEndOffset,
+               gravitateEnd ? index : mEndOffset,
                mRoot);
   }
   if (container->IsSelectionDescendant() &&

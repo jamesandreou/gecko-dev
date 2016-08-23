@@ -1250,8 +1250,7 @@ txMozillaXSLTProcessor::AttributeChanged(nsIDocument* aDocument,
 void
 txMozillaXSLTProcessor::ContentAppended(nsIDocument* aDocument,
                                         nsIContent* aContainer,
-                                        nsIContent* aFirstNewContent,
-                                        int32_t /* unused */)
+                                        nsIContent* aFirstNewContent)
 {
     mStylesheet = nullptr;
 }
@@ -1259,8 +1258,7 @@ txMozillaXSLTProcessor::ContentAppended(nsIDocument* aDocument,
 void
 txMozillaXSLTProcessor::ContentInserted(nsIDocument* aDocument,
                                         nsIContent* aContainer,
-                                        nsIContent* aChild,
-                                        int32_t /* unused */)
+                                        nsIContent* aChild)
 {
     mStylesheet = nullptr;
 }
@@ -1269,7 +1267,6 @@ void
 txMozillaXSLTProcessor::ContentRemoved(nsIDocument* aDocument,
                                        nsIContent* aContainer,
                                        nsIContent* aChild,
-                                       int32_t aIndexInContainer,
                                        nsIContent* aPreviousSibling)
 {
     mStylesheet = nullptr;

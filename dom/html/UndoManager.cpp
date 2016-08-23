@@ -673,15 +673,16 @@ UndoMutationObserver::CharacterDataWillChange(nsIDocument* aDocument,
 void
 UndoMutationObserver::ContentAppended(nsIDocument* aDocument,
                                       nsIContent* aContainer,
-                                      nsIContent* aFirstNewContent,
-                                      int32_t aNewIndexInContainer)
+                                      nsIContent* aFirstNewContent)
 {
   if (!IsManagerForMutation(aContainer)) {
     return;
   }
 
   RefPtr<UndoContentAppend> txn = new UndoContentAppend(aContainer);
-  if (NS_SUCCEEDED(txn->Init(aNewIndexInContainer))) {
+  nsINode* container = NODE_FROM(aContainer, aDocument);
+  int32_t ind = container->IndexOf(aFirstNewContent);
+  if (NS_SUCCEEDED(txn->Init(ind))) {
     mTxnManager->DoTransaction(txn);
   }
 }
@@ -689,15 +690,15 @@ UndoMutationObserver::ContentAppended(nsIDocument* aDocument,
 void
 UndoMutationObserver::ContentInserted(nsIDocument* aDocument,
                                       nsIContent* aContainer,
-                                      nsIContent* aChild,
-                                      int32_t aIndexInContainer)
+                                      nsIContent* aChild)
 {
   if (!IsManagerForMutation(aContainer)) {
     return;
   }
 
-  RefPtr<UndoContentInsert> txn = new UndoContentInsert(aContainer, aChild,
-                                                          aIndexInContainer);
+  nsINode* container = NODE_FROM(aContainer, aDocument);
+  int32_t ind = container->IndexOf(aChild);
+  RefPtr<UndoContentInsert> txn = new UndoContentInsert(aContainer, aChild, ind);
   mTxnManager->DoTransaction(txn);
 }
 
@@ -705,15 +706,14 @@ void
 UndoMutationObserver::ContentRemoved(nsIDocument *aDocument,
                                      nsIContent* aContainer,
                                      nsIContent* aChild,
-                                     int32_t aIndexInContainer,
                                      nsIContent* aPreviousSibling)
 {
   if (!IsManagerForMutation(aContainer)) {
     return;
   }
-
-  RefPtr<UndoContentRemove> txn = new UndoContentRemove(aContainer, aChild,
-                                                          aIndexInContainer);
+  nsINode* container = NODE_FROM(aContainer, aDocument);
+  int32_t ind = container->IndexOf(aPreviousSibling) + 1;
+  RefPtr<UndoContentRemove> txn = new UndoContentRemove(aContainer, aChild, ind);
   mTxnManager->DoTransaction(txn);
 }
 

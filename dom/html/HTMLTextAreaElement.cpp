@@ -1267,8 +1267,7 @@ HTMLTextAreaElement::CharacterDataChanged(nsIDocument* aDocument,
 void
 HTMLTextAreaElement::ContentAppended(nsIDocument* aDocument,
                                      nsIContent* aContainer,
-                                     nsIContent* aFirstNewContent,
-                                     int32_t /* unused */)
+                                     nsIContent* aFirstNewContent)
 {
   ContentChanged(aFirstNewContent);
 }
@@ -1276,8 +1275,7 @@ HTMLTextAreaElement::ContentAppended(nsIDocument* aDocument,
 void
 HTMLTextAreaElement::ContentInserted(nsIDocument* aDocument,
                                      nsIContent* aContainer,
-                                     nsIContent* aChild,
-                                     int32_t /* unused */)
+                                     nsIContent* aChild)
 {
   ContentChanged(aChild);
 }
@@ -1286,7 +1284,6 @@ void
 HTMLTextAreaElement::ContentRemoved(nsIDocument* aDocument,
                                     nsIContent* aContainer,
                                     nsIContent* aChild,
-                                    int32_t aIndexInContainer,
                                     nsIContent* aPreviousSibling)
 {
   ContentChanged(aChild);

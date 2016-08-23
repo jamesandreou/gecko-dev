@@ -91,8 +91,7 @@ nsScriptElement::AttributeChanged(nsIDocument* aDocument,
 void
 nsScriptElement::ContentAppended(nsIDocument* aDocument,
                                  nsIContent* aContainer,
-                                 nsIContent* aFirstNewContent,
-                                 int32_t aNewIndexInContainer)
+                                 nsIContent* aFirstNewContent)
 {
   MaybeProcessScript();
 }
@@ -100,8 +99,7 @@ nsScriptElement::ContentAppended(nsIDocument* aDocument,
 void
 nsScriptElement::ContentInserted(nsIDocument *aDocument,
                                  nsIContent* aContainer,
-                                 nsIContent* aChild,
-                                 int32_t aIndexInContainer)
+                                 nsIContent* aChild)
 {
   MaybeProcessScript();
 }

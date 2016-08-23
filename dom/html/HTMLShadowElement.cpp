@@ -302,8 +302,7 @@ HTMLShadowElement::DistributeAllNodes()
 void
 HTMLShadowElement::ContentAppended(nsIDocument* aDocument,
                                    nsIContent* aContainer,
-                                   nsIContent* aFirstNewContent,
-                                   int32_t aNewIndexInContainer)
+                                   nsIContent* aFirstNewContent)
 {
   // Watch for content appended to the projected shadow (the ShadowRoot that
   // will be rendered in place of this shadow insertion point) because the
@@ -320,8 +319,7 @@ HTMLShadowElement::ContentAppended(nsIDocument* aDocument,
 void
 HTMLShadowElement::ContentInserted(nsIDocument* aDocument,
                                    nsIContent* aContainer,
-                                   nsIContent* aChild,
-                                   int32_t aIndexInContainer)
+                                   nsIContent* aChild)
 {
   // Watch for content appended to the projected shadow (the ShadowRoot that
   // will be rendered in place of this shadow insertion point) because the
@@ -337,7 +335,6 @@ void
 HTMLShadowElement::ContentRemoved(nsIDocument* aDocument,
                                   nsIContent* aContainer,
                                   nsIContent* aChild,
-                                  int32_t aIndexInContainer,
                                   nsIContent* aPreviousSibling)
 {
   // Watch for content removed from the projected shadow (the ShadowRoot that

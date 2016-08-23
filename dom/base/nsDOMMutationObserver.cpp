@@ -222,8 +222,7 @@ nsMutationReceiver::CharacterDataWillChange(nsIDocument *aDocument,
 void
 nsMutationReceiver::ContentAppended(nsIDocument* aDocument,
                                     nsIContent* aContainer,
-                                    nsIContent* aFirstNewContent,
-                                    int32_t aNewIndexInContainer)
+                                    nsIContent* aFirstNewContent)
 {
   nsINode* parent = NODE_FROM(aContainer, aDocument);
   bool wantsChildList =
@@ -263,8 +262,7 @@ nsMutationReceiver::ContentAppended(nsIDocument* aDocument,
 void
 nsMutationReceiver::ContentInserted(nsIDocument* aDocument,
                                     nsIContent* aContainer,
-                                    nsIContent* aChild,
-                                    int32_t aIndexInContainer)
+                                    nsIContent* aChild)
 {
   nsINode* parent = NODE_FROM(aContainer, aDocument);
   bool wantsChildList =
@@ -299,7 +297,6 @@ void
 nsMutationReceiver::ContentRemoved(nsIDocument* aDocument,
                                    nsIContent* aContainer,
                                    nsIContent* aChild,
-                                   int32_t aIndexInContainer,
                                    nsIContent* aPreviousSibling)
 {
   if (!IsObservable(aChild)) {
@@ -373,7 +370,11 @@ nsMutationReceiver::ContentRemoved(nsIDocument* aDocument,
     m->mRemovedNodes = new nsSimpleContentList(parent);
     m->mRemovedNodes->AppendElement(aChild);
     m->mPreviousSibling = aPreviousSibling;
-    m->mNextSibling = parent->GetChildAt(aIndexInContainer);
+    if (aPreviousSibling) {
+      m->mNextSibling = aPreviousSibling->GetNextSibling();
+    } else {
+      m->mNextSibling = nullptr;
+    }
   }
   // We need to schedule always, so that after microtask mTransientReceivers
   // can be cleared correctly.

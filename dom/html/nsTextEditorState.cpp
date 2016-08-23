@@ -2302,8 +2302,7 @@ nsAnonDivObserver::CharacterDataChanged(nsIDocument*             aDocument,
 void
 nsAnonDivObserver::ContentAppended(nsIDocument* aDocument,
                                    nsIContent*  aContainer,
-                                   nsIContent*  aFirstNewContent,
-                                   int32_t      /* unused */)
+                                   nsIContent*  aFirstNewContent)
 {
   mTextEditorState->ClearValueCache();
 }
@@ -2311,8 +2310,7 @@ nsAnonDivObserver::ContentAppended(nsIDocument* aDocument,
 void
 nsAnonDivObserver::ContentInserted(nsIDocument* aDocument,
                                    nsIContent*  aContainer,
-                                   nsIContent*  aChild,
-                                   int32_t      /* unused */)
+                                   nsIContent*  aChild)
 {
   mTextEditorState->ClearValueCache();
 }
@@ -2321,7 +2319,6 @@ void
 nsAnonDivObserver::ContentRemoved(nsIDocument* aDocument,
                                   nsIContent*  aContainer,
                                   nsIContent*  aChild,
-                                  int32_t      aIndexInContainer,
                                   nsIContent*  aPreviousSibling)
 {
   mTextEditorState->ClearValueCache();

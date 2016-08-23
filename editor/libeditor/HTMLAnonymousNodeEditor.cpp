@@ -287,7 +287,7 @@ HTMLEditor::DeleteRefToAnonymousNode(nsIDOMElement* aElement,
           // in RestyleManager::RestyleForRemove should be changed back
           // to an assertion.
           docObserver->ContentRemoved(content->GetComposedDoc(),
-                                      aParentContent, content, -1,
+                                      aParentContent, content,
                                       content->GetPreviousSibling());
           if (document)
             docObserver->EndUpdate(document, UPDATE_CONTENT_MODEL);

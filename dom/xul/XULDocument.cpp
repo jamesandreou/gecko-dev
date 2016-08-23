@@ -1026,8 +1026,7 @@ XULDocument::AttributeChanged(nsIDocument* aDocument,
 void
 XULDocument::ContentAppended(nsIDocument* aDocument,
                              nsIContent* aContainer,
-                             nsIContent* aFirstNewContent,
-                             int32_t aNewIndexInContainer)
+                             nsIContent* aFirstNewContent)
 {
     NS_ASSERTION(aDocument == this, "unexpected doc");
     
@@ -1045,8 +1044,7 @@ XULDocument::ContentAppended(nsIDocument* aDocument,
 void
 XULDocument::ContentInserted(nsIDocument* aDocument,
                              nsIContent* aContainer,
-                             nsIContent* aChild,
-                             int32_t aIndexInContainer)
+                             nsIContent* aChild)
 {
     NS_ASSERTION(aDocument == this, "unexpected doc");
 
@@ -1060,7 +1058,6 @@ void
 XULDocument::ContentRemoved(nsIDocument* aDocument,
                             nsIContent* aContainer,
                             nsIContent* aChild,
-                            int32_t aIndexInContainer,
                             nsIContent* aPreviousSibling)
 {
     NS_ASSERTION(aDocument == this, "unexpected doc");
