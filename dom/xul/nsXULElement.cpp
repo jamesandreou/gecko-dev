@@ -908,10 +908,9 @@ nsXULElement::UnbindFromTree(bool aDeep, bool aNullParent)
 }
 
 void
-nsXULElement::RemoveChildAt(uint32_t aIndex, bool aNotify)
+nsXULElement::RemoveChildAt(nsIContent* aChild, bool aNotify)
 {
-    nsCOMPtr<nsIContent> oldKid = GetChildAt(aIndex);
-    if (!oldKid) {
+    if (!aChild) {
       return;
     }
     // Keep child alive while unlinking
@@ -928,7 +927,7 @@ nsXULElement::RemoveChildAt(uint32_t aIndex, bool aNotify)
     // anything else = index to re-set as current
     int32_t newCurrentIndex = -1;
 
-    if (oldKid->NodeInfo()->Equals(nsGkAtoms::listitem, kNameSpaceID_XUL)) {
+    if (aChild->NodeInfo()->Equals(nsGkAtoms::listitem, kNameSpaceID_XUL)) {
       // This is the nasty case. We have (potentially) a slew of selected items
       // and cells going away.
       // First, retrieve the tree.
@@ -940,7 +939,7 @@ nsXULElement::RemoveChildAt(uint32_t aIndex, bool aNotify)
         GetParentTree(getter_AddRefs(controlElement));
       nsCOMPtr<nsIDOMXULElement> xulElement(do_QueryInterface(controlElement));
 
-      nsCOMPtr<nsIDOMElement> oldKidElem = do_QueryInterface(oldKid);
+      nsCOMPtr<nsIDOMElement> oldKidElem = do_QueryInterface(aChild);
       if (xulElement && oldKidElem) {
         // Iterate over all of the items and find out if they are contained inside
         // the removed subtree.
@@ -962,7 +961,7 @@ nsXULElement::RemoveChildAt(uint32_t aIndex, bool aNotify)
         nsCOMPtr<nsIDOMXULSelectControlItemElement> curItem;
         controlElement->GetCurrentItem(getter_AddRefs(curItem));
         nsCOMPtr<nsIContent> curNode = do_QueryInterface(curItem);
-        if (curNode && nsContentUtils::ContentIsDescendantOf(curNode, oldKid)) {
+        if (curNode && nsContentUtils::ContentIsDescendantOf(curNode, aChild)) {
             // Current item going away
             nsCOMPtr<nsIBoxObject> box;
             xulElement->GetBoxObject(getter_AddRefs(box));
@@ -978,7 +977,7 @@ nsXULElement::RemoveChildAt(uint32_t aIndex, bool aNotify)
       }
     }
 
-    nsStyledElement::RemoveChildAt(aIndex, aNotify);
+    nsStyledElement::RemoveChildAt(aChild, aNotify);
 
     if (newCurrentIndex == -2) {
         controlElement->SetCurrentItem(nullptr);

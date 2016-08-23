@@ -672,8 +672,7 @@ public:
    * BindToTree on the child appropriately.
    *
    * @param aKid the content to insert
-   * @param aIndex the index it is being inserted at (the index it will have
-   *        after it is inserted)
+   * @param aChildToInsertBefore the child to insert before or NULL is appending
    * @param aNotify whether to notify the document (current document for
    *        nsIContent, and |this| for nsIDocument) that the insert has
    *        occurred
@@ -687,8 +686,8 @@ public:
    *
    * @throws NS_ERROR_OUT_OF_MEMORY in some cases (from BindToTree).
    */
-  virtual nsresult InsertChildAt(nsIContent* aKid, uint32_t aIndex,
-                                 bool aNotify) = 0;
+  virtual nsresult InsertChild(nsIContent* aKid, nsIContent* aChildToInsertBefore,
+                               bool aNotify) = 0;
 
   /**
    * Append a content node to the end of the child list.  This method handles
@@ -710,21 +709,21 @@ public:
    */
   nsresult AppendChildTo(nsIContent* aKid, bool aNotify)
   {
-    return InsertChildAt(aKid, GetChildCount(), aNotify);
+    return InsertChild(aKid, nullptr, aNotify);
   }
 
   /**
    * Remove a child from this node.  This method handles calling UnbindFromTree
    * on the child appropriately.
    *
-   * @param aIndex the index of the child to remove
+   * @param aChild the child to remove
    * @param aNotify whether to notify the document (current document for
    *        nsIContent, and |this| for nsIDocument) that the remove has
    *        occurred
    *
    * Note: If there is no child at aIndex, this method will simply do nothing.
    */
-  virtual void RemoveChildAt(uint32_t aIndex, bool aNotify) = 0;
+  virtual void RemoveChildAt(nsIContent* aChild, bool aNotify) = 0;
 
   /**
    * Get a property associated with this node.
@@ -2000,7 +1999,7 @@ protected:
   virtual mozilla::dom::Element* GetNameSpaceElement() = 0;
 
   /**
-   * Most of the implementation of the nsINode RemoveChildAt method.
+   * Most of the implementation of the nsINode RemoveChild method.
    * Should only be called on document, element, and document fragment
    * nodes.
    *
@@ -2014,7 +2013,7 @@ protected:
   void UnlinkAndUnbindAllChildren();
 
   /**
-   * Most of the implementation of the nsINode InsertChildAt method.
+   * Most of the implementation of the nsINode InsertChild method.
    * Should only be called on document, element, and document fragment
    * nodes.
    *
@@ -2107,12 +2106,12 @@ private:
   uint32_t mChildCount;
 
 protected:
-  // mNextSibling and mFirstChild are STRONG pointers while mPreviousSibling is
-  // kept weak. mPreviousSibling will cycle around to the last child on first child
+  // mNextSibling and mFirstChild are STRONG pointers while mPrevOrLastSibling is
+  // kept weak. mPrevOrLastSibling will cycle around to the last child on first child
   // to avoid adding a pointer to last child.
   nsCOMPtr<nsIContent> mFirstChild;
   nsCOMPtr<nsIContent> mNextSibling;
-  nsIContent* MOZ_NON_OWNING_REF mPreviousSibling;
+  nsIContent* MOZ_NON_OWNING_REF mPrevOrLastSibling;
 
   union {
     // Pointer to our primary frame.  Might be null.

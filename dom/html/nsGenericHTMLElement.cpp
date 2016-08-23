@@ -3136,11 +3136,9 @@ nsGenericHTMLElement::SetInnerText(const nsAString& aValue)
     UPDATE_CONTENT_MODEL, true);
   nsAutoMutationBatch mb;
 
-  uint32_t childCount = GetChildCount();
-
   mb.Init(this, true, false);
-  for (uint32_t i = 0; i < childCount; ++i) {
-    RemoveChildAt(0, true);
+  while (GetFirstChild()) {
+    RemoveChildAt(GetFirstChild(), true);
   }
   mb.RemovalDone();
 

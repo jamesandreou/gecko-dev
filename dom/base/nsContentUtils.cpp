@@ -4194,7 +4194,7 @@ nsContentUtils::HasMutationListeners(nsIDocument* aDocument,
   return !window || window->HasMutationListeners(aType);
 }
 
-void
+bool
 nsContentUtils::MaybeFireNodeRemoved(nsINode* aChild, nsINode* aParent,
                                      nsIDocument* aOwnerDoc)
 {
@@ -4223,7 +4223,7 @@ nsContentUtils::MaybeFireNodeRemoved(nsINode* aChild, nsINode* aParent,
       NS_ERROR("Want to fire DOMNodeRemoved event, but it's not safe");
       WarnScriptWasIgnored(aOwnerDoc);
     }
-    return;
+    return false;
   }
 
   if (HasMutationListeners(aChild,
@@ -4233,7 +4233,9 @@ nsContentUtils::MaybeFireNodeRemoved(nsINode* aChild, nsINode* aParent,
 
     mozAutoSubtreeModified subtree(aOwnerDoc, aParent);
     EventDispatcher::Dispatch(aChild, nullptr, &mutation);
+    return true;
   }
+  return false;
 }
 
 void
@@ -4709,29 +4711,28 @@ nsContentUtils::SetNodeTextContent(nsIContent* aContent,
   uint32_t childCount = aContent->GetChildCount();
 
   if (aTryReuse && !aValue.IsEmpty()) {
-    uint32_t removeIndex = 0;
+    bool foundTextNode = false;
+    nsIContent* child = aContent->GetFirstChild();
 
-    for (uint32_t i = 0; i < childCount; ++i) {
-      nsIContent* child = aContent->GetChildAt(removeIndex);
-      if (removeIndex == 0 && child && child->IsNodeOfType(nsINode::eTEXT)) {
+    while (child) {
+      if (!foundTextNode && child->IsNodeOfType(nsINode::eTEXT)) {
         nsresult rv = child->SetText(aValue, true);
         NS_ENSURE_SUCCESS(rv, rv);
-
-        removeIndex = 1;
+        foundTextNode = true;
+      } else {
+        aContent->RemoveChildAt(child, true);
       }
-      else {
-        aContent->RemoveChildAt(removeIndex, true);
-      }
+      child = child->GetNextSibling();
     }
 
-    if (removeIndex == 1) {
+    if (foundTextNode) {
       return NS_OK;
     }
   }
   else {
     mb.Init(aContent, true, false);
     for (uint32_t i = 0; i < childCount; ++i) {
-      aContent->RemoveChildAt(0, true);
+      aContent->RemoveChildAt(aContent->GetChildAt(0), true);
     }
   }
   mb.RemovalDone();

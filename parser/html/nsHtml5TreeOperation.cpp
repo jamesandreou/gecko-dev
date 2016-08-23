@@ -242,7 +242,7 @@ nsHtml5TreeOperation::Detach(nsIContent* aNode, nsHtml5DocumentBuilder* aBuilder
         aBuilder->GetDocument());
     int32_t pos = parent->IndexOf(aNode);
     NS_ASSERTION((pos >= 0), "Element not found as child of its parent");
-    parent->RemoveChildAt(pos, true);
+    parent->RemoveChildAt(parent->GetChildAt(pos), true);
   }
 }
 
@@ -260,7 +260,7 @@ nsHtml5TreeOperation::AppendChildrenToNewParent(nsIContent* aNode,
   bool didAppend = false;
   while (aNode->HasChildren()) {
     nsCOMPtr<nsIContent> child = aNode->GetFirstChild();
-    aNode->RemoveChildAt(0, true);
+    aNode->RemoveChildAt(aNode->GetFirstChild(), true);
     nsresult rv = aParent->AppendChildTo(child, false);
     NS_ENSURE_SUCCESS(rv, rv);
     didAppend = true;
@@ -287,7 +287,7 @@ nsHtml5TreeOperation::FosterParent(nsIContent* aNode,
                                  aBuilder->GetDocument());
 
     uint32_t pos = foster->IndexOf(aTable);
-    nsresult rv = foster->InsertChildAt(aNode, pos, false);
+    nsresult rv = foster->InsertChild(aNode, foster->GetChildAt(pos), false);
     NS_ENSURE_SUCCESS(rv, rv);
     nsNodeUtils::ContentInserted(foster, aNode);
     return rv;
@@ -517,7 +517,7 @@ nsHtml5TreeOperation::FosterParentText(nsIContent* aStackParent,
     rv = text->SetText(aBuffer, aLength, false);
     NS_ENSURE_SUCCESS(rv, rv);
 
-    rv = foster->InsertChildAt(text, pos, false);
+    rv = foster->InsertChild(text, foster->GetChildAt(pos), false);
     NS_ENSURE_SUCCESS(rv, rv);
     nsNodeUtils::ContentInserted(foster, text);
     return rv;

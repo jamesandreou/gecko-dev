@@ -327,14 +327,13 @@ Attr::IndexOf(const nsINode* aPossibleChild) const
 }
 
 nsresult
-Attr::InsertChildAt(nsIContent* aKid, uint32_t aIndex,
-                              bool aNotify)
+Attr::InsertChild(nsIContent* aKid, nsIContent* aChildToInsertBefore, bool aNotify)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
 void
-Attr::RemoveChildAt(uint32_t aIndex, bool aNotify)
+Attr::RemoveChildAt(nsIContent* aChild, bool aNotify)
 {
 }
 

@@ -197,13 +197,13 @@ HTMLSelectElement::GetForm(nsIDOMHTMLFormElement** aForm)
 }
 
 nsresult
-HTMLSelectElement::InsertChildAt(nsIContent* aKid,
-                                 uint32_t aIndex,
+HTMLSelectElement::InsertChild(nsIContent* aKid,
+                                 nsIContent* aChildToInsertBefore,
                                  bool aNotify)
 {
-  SafeOptionListMutation safeMutation(this, this, aKid, aIndex, aNotify);
-  nsresult rv = nsGenericHTMLFormElementWithState::InsertChildAt(aKid, aIndex,
-                                                                 aNotify);
+  int32_t index = aChildToInsertBefore ? IndexOf(aChildToInsertBefore) : GetChildCount();
+  SafeOptionListMutation safeMutation(this, this, aKid, index, aNotify);
+  nsresult rv = nsGenericHTMLFormElementWithState::InsertChild(aKid, aChildToInsertBefore, aNotify);
   if (NS_FAILED(rv)) {
     safeMutation.MutationFailed();
   }
@@ -211,10 +211,10 @@ HTMLSelectElement::InsertChildAt(nsIContent* aKid,
 }
 
 void
-HTMLSelectElement::RemoveChildAt(uint32_t aIndex, bool aNotify)
+HTMLSelectElement::RemoveChildAt(nsIContent* aChild, bool aNotify)
 {
-  SafeOptionListMutation safeMutation(this, this, nullptr, aIndex, aNotify);
-  nsGenericHTMLFormElementWithState::RemoveChildAt(aIndex, aNotify);
+  SafeOptionListMutation safeMutation(this, this, nullptr, IndexOf(aChild), aNotify);
+  nsGenericHTMLFormElementWithState::RemoveChildAt(aChild, aNotify);
 }
 
 

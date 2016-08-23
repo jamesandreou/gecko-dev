@@ -1138,22 +1138,18 @@ FragmentOrElement::SetCustomElementData(CustomElementData* aData)
 }
 
 nsresult
-FragmentOrElement::InsertChildAt(nsIContent* aKid, uint32_t aIndex, bool aNotify)
+FragmentOrElement::InsertChild(nsIContent* aKid, nsIContent* aChildToInsertBefore, bool aNotify)
 {
   MOZ_ASSERT(aKid, "Trying to insert a null child.");
 
-  nsIContent* childToInsertBefore = doChildAt(aIndex);
-  return doInsertChild(aKid, childToInsertBefore, aNotify);
+  return doInsertChild(aKid, aChildToInsertBefore, aNotify);
 }
 
 void
-FragmentOrElement::RemoveChildAt(uint32_t aIndex, bool aNotify)
+FragmentOrElement::RemoveChildAt(nsIContent* aChild, bool aNotify)
 {
-  nsCOMPtr<nsIContent> oldKid = doChildAt(aIndex);
-  MOZ_ASSERT(oldKid == GetChildAt(aIndex), "Unexpected child in RemoveChildAt");
-
-  if (oldKid) {
-    doRemoveChild(oldKid, aNotify);
+  if (aChild) {
+    doRemoveChild(aChild, aNotify);
   }
 }
 
@@ -2224,10 +2220,9 @@ FragmentOrElement::SetInnerHTMLInternal(const nsAString& aInnerHTML, ErrorResult
   mozAutoDocUpdate updateBatch(doc, UPDATE_CONTENT_MODEL, true);
 
   // Remove childnodes.
-  uint32_t childCount = target->GetChildCount();
   nsAutoMutationBatch mb(target, true, false);
-  for (uint32_t i = 0; i < childCount; ++i) {
-    target->RemoveChildAt(0, true);
+  while (target->GetFirstChild()) {
+    target->RemoveChildAt(target->GetFirstChild(), true);
   }
   mb.RemovalDone();
 

@@ -53,6 +53,7 @@ class nsGenericHTMLElement : public nsGenericHTMLElementBase,
 public:
   using Element::SetTabIndex;
   using Element::Focus;
+  using nsINode::GetFirstChild;
   explicit nsGenericHTMLElement(already_AddRefed<mozilla::dom::NodeInfo>& aNodeInfo)
     : nsGenericHTMLElementBase(aNodeInfo)
   {

@@ -684,14 +684,13 @@ nsGenericDOMDataNode::IndexOf(const nsINode* aPossibleChild) const
 }
 
 nsresult
-nsGenericDOMDataNode::InsertChildAt(nsIContent* aKid, uint32_t aIndex,
-                                    bool aNotify)
+nsGenericDOMDataNode::InsertChild(nsIContent* aKid, nsIContent* aChildToInsertBefore, bool aNotify)
 {
   return NS_OK;
 }
 
 void
-nsGenericDOMDataNode::RemoveChildAt(uint32_t aIndex, bool aNotify)
+nsGenericDOMDataNode::RemoveChildAt(nsIContent* aChild, bool aNotify)
 {
 }
 
@@ -890,11 +889,11 @@ nsGenericDOMDataNode::SplitData(uint32_t aOffset, nsIContent** aReturn,
 
   nsCOMPtr<nsINode> parent = GetParentNode();
   if (parent) {
-    int32_t insertionIndex = parent->IndexOf(this);
+    nsIContent* childToInsertBefore = this;
     if (aCloneAfterOriginal) {
-      ++insertionIndex;
+      childToInsertBefore = childToInsertBefore->GetNextSibling();
     }
-    parent->InsertChildAt(newContent, insertionIndex, true);
+    parent->InsertChild(newContent, childToInsertBefore, true);
   }
 
   newContent.swap(*aReturn);

@@ -4028,31 +4028,29 @@ nsDocument::GetChildCount() const
 }
 
 nsresult
-nsDocument::InsertChildAt(nsIContent* aKid, uint32_t aIndex, bool aNotify)
+nsDocument::InsertChild(nsIContent* aKid, nsIContent* aChildToInsertBefore, bool aNotify)
 {
   if (aKid->IsElement() && GetRootElement()) {
     NS_WARNING("Inserting root element when we already have one");
     return NS_ERROR_DOM_HIERARCHY_REQUEST_ERR;
   }
 
-  nsIContent* childToInsertBefore = GetChildAt(aIndex);
-  return doInsertChild(aKid, childToInsertBefore, aNotify);
+  return doInsertChild(aKid, aChildToInsertBefore, aNotify);
 }
 
 void
-nsDocument::RemoveChildAt(uint32_t aIndex, bool aNotify)
+nsDocument::RemoveChildAt(nsIContent* aChild, bool aNotify)
 {
-  nsCOMPtr<nsIContent> oldKid = GetChildAt(aIndex);
-  if (!oldKid) {
+  if (!aChild) {
     return;
   }
 
-  if (oldKid->IsElement()) {
+  if (aChild->IsElement()) {
     // Destroy the link map up front before we mess with the child list.
     DestroyElementMaps();
   }
 
-  doRemoveChild(oldKid, aNotify);
+  doRemoveChild(aChild, aNotify);
   mCachedRootElement = nullptr;
 }
 
@@ -7166,7 +7164,7 @@ nsDocument::SetTitle(const nsAString& aTitle)
       if (!title) {
         return NS_OK;
       }
-      rootElement->InsertChildAt(title, 0, true);
+      rootElement->InsertChild(title, rootElement->mFirstChild, true);
     }
   } else if (rootElement->IsHTMLElement()) {
     if (!title) {
@@ -7691,7 +7689,7 @@ nsDOMAttributeMap::BlastSubtreeToPieces(nsINode *aNode)
   uint32_t count = aNode->GetChildCount();
   for (uint32_t i = 0; i < count; ++i) {
     BlastSubtreeToPieces(aNode->GetFirstChild());
-    aNode->RemoveChildAt(0, false);
+    aNode->RemoveChildAt(aNode->GetFirstChild(), false);
   }
 }
 
@@ -7793,9 +7791,7 @@ nsIDocument::AdoptNode(nsINode& aAdoptedNode, ErrorResult& rv)
       // Remove from parent.
       nsCOMPtr<nsINode> parent = adoptedNode->GetParentNode();
       if (parent) {
-        int32_t idx = parent->IndexOf(adoptedNode);
-        MOZ_ASSERT(idx >= 0);
-        parent->RemoveChildAt(idx, true);
+        parent->RemoveChildAt(adoptedNode->AsContent(), true);
       } else {
         MOZ_ASSERT(!adoptedNode->IsInUncomposedDoc());
 

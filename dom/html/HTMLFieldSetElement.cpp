@@ -160,8 +160,7 @@ HTMLFieldSetElement::SubmitNamesValues(HTMLFormSubmission* aFormSubmission)
 }
 
 nsresult
-HTMLFieldSetElement::InsertChildAt(nsIContent* aChild, uint32_t aIndex,
-                                   bool aNotify)
+HTMLFieldSetElement::InsertChild(nsIContent* aChild, nsIContent* aChildToInsertBefore, bool aNotify)
 {
   bool firstLegendHasChanged = false;
 
@@ -170,16 +169,17 @@ HTMLFieldSetElement::InsertChildAt(nsIContent* aChild, uint32_t aIndex,
       mFirstLegend = aChild;
       // We do not want to notify the first time mFirstElement is set.
     } else {
-      // If mFirstLegend is before aIndex, we do not change it.
+      // If mFirstLegend is before aChild's index, we do not change it.
       // Otherwise, mFirstLegend is now aChild.
-      if (int32_t(aIndex) <= IndexOf(mFirstLegend)) {
+      int32_t index = aChildToInsertBefore ? IndexOf(aChildToInsertBefore) : GetChildCount();
+      if (index <= IndexOf(mFirstLegend)) {
         mFirstLegend = aChild;
         firstLegendHasChanged = true;
       }
     }
   }
 
-  nsresult rv = nsGenericHTMLFormElement::InsertChildAt(aChild, aIndex, aNotify);
+  nsresult rv = nsGenericHTMLFormElement::InsertChild(aChild, aChildToInsertBefore, aNotify);
   NS_ENSURE_SUCCESS(rv, rv);
 
   if (firstLegendHasChanged) {
@@ -190,11 +190,11 @@ HTMLFieldSetElement::InsertChildAt(nsIContent* aChild, uint32_t aIndex,
 }
 
 void
-HTMLFieldSetElement::RemoveChildAt(uint32_t aIndex, bool aNotify)
+HTMLFieldSetElement::RemoveChildAt(nsIContent* aChild, bool aNotify)
 {
   bool firstLegendHasChanged = false;
 
-  if (mFirstLegend && (GetChildAt(aIndex) == mFirstLegend)) {
+  if (mFirstLegend && (aChild == mFirstLegend)) {
     // If we are removing the first legend we have to found another one.
     nsIContent* child = mFirstLegend->GetNextSibling();
     mFirstLegend = nullptr;
@@ -208,7 +208,7 @@ HTMLFieldSetElement::RemoveChildAt(uint32_t aIndex, bool aNotify)
     }
   }
 
-  nsGenericHTMLFormElement::RemoveChildAt(aIndex, aNotify);
+  nsGenericHTMLFormElement::RemoveChildAt(aChild, aNotify);
 
   if (firstLegendHasChanged) {
     NotifyElementsForFirstLegendChange(aNotify);

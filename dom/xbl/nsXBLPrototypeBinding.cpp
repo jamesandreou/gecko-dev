@@ -388,9 +388,9 @@ nsXBLPrototypeBinding::AttributeChanged(nsIAtom* aAttribute,
                                            kNameSpaceID_XUL) &&
            dstAttr == nsGkAtoms::value)) {
         // Flush out all our kids.
-        uint32_t childCount = realElement->GetChildCount();
-        for (uint32_t i = 0; i < childCount; i++)
-          realElement->RemoveChildAt(0, aNotify);
+        while (realElement->GetFirstChild()) {
+          realElement->RemoveChildAt(realElement->GetFirstChild(), aNotify);
+        }
 
         if (!aRemoveFlag) {
           // Construct a new text node and insert it.

@@ -2350,7 +2350,7 @@ XULDocument::CreateAndInsertPI(const nsXULPrototypePI* aProtoPI,
         rv = InsertXULOverlayPI(aProtoPI, aParent, aIndex, node);
     } else {
         // No special processing, just add the PI to the document.
-        rv = aParent->InsertChildAt(node, aIndex, false);
+        rv = aParent->InsertChild(node, aParent->GetChildAt(aIndex), false);
     }
 
     return rv;
@@ -2374,7 +2374,7 @@ XULDocument::InsertXMLStylesheetPI(const nsXULPrototypePI* aProtoPI,
     ssle->SetEnableUpdates(false);
     ssle->OverrideBaseURI(mCurrentPrototype->GetURI());
 
-    rv = aParent->InsertChildAt(aPINode, aIndex, false);
+    rv = aParent->InsertChild(aPINode, aParent->GetChildAt(aIndex), false);
     if (NS_FAILED(rv)) return rv;
 
     ssle->SetEnableUpdates(true);
@@ -2406,7 +2406,7 @@ XULDocument::InsertXULOverlayPI(const nsXULPrototypePI* aProtoPI,
 {
     nsresult rv;
 
-    rv = aParent->InsertChildAt(aPINode, aIndex, false);
+    rv = aParent->InsertChild(aPINode, aParent->GetChildAt(aIndex), false);
     if (NS_FAILED(rv)) return rv;
 
     // xul-overlay PI is special only in prolog
@@ -3957,13 +3957,13 @@ XULDocument::OverlayForwardReference::Merge(nsIContent* aTargetNode,
                 // The element matches. "Go Deep!"
                 rv = Merge(elementInDocument, currContent, aNotify);
                 if (NS_FAILED(rv)) return rv;
-                aOverlayNode->RemoveChildAt(0, false);
+                aOverlayNode->RemoveChildAt(aOverlayNode->GetFirstChild(), false);
 
                 continue;
             }
         }
 
-        aOverlayNode->RemoveChildAt(0, false);
+        aOverlayNode->RemoveChildAt(aOverlayNode->GetFirstChild(), false);
 
         rv = InsertElement(aTargetNode, currContent, aNotify);
         if (NS_FAILED(rv)) return rv;
@@ -4303,7 +4303,7 @@ XULDocument::InsertElement(nsINode* aParent, nsIContent* aChild,
 
             if (pos != -1) {
                 pos = isInsertAfter ? pos + 1 : pos;
-                nsresult rv = aParent->InsertChildAt(aChild, pos, aNotify);
+                nsresult rv = aParent->InsertChild(aChild, aParent->GetChildAt(pos), aNotify);
                 if (NS_FAILED(rv))
                     return rv;
 
@@ -4325,7 +4325,7 @@ XULDocument::InsertElement(nsINode* aParent, nsIContent* aChild,
             // appending.
             if (NS_SUCCEEDED(rv) && pos > 0 &&
                 uint32_t(pos - 1) <= aParent->GetChildCount()) {
-                rv = aParent->InsertChildAt(aChild, pos - 1, aNotify);
+                rv = aParent->InsertChild(aChild, aParent->GetChildAt(pos - 1), aNotify);
                 if (NS_SUCCEEDED(rv))
                     wasInserted = true;
                 // If the insertion fails, then we should still
@@ -4345,9 +4345,7 @@ XULDocument::InsertElement(nsINode* aParent, nsIContent* aChild,
 nsresult
 XULDocument::RemoveElement(nsINode* aParent, nsINode* aChild)
 {
-    int32_t nodeOffset = aParent->IndexOf(aChild);
-
-    aParent->RemoveChildAt(nodeOffset, true);
+    aParent->RemoveChildAt(static_cast<nsIContent*>(aChild), true);
     return NS_OK;
 }
 

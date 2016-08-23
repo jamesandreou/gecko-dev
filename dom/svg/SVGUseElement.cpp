@@ -311,11 +311,10 @@ SVGUseElement::CreateAnonymousContent()
     }
 
     // move the children over
-    uint32_t num = newcontent->GetChildCount();
-    for (i = 0; i < num; i++) {
-      nsCOMPtr<nsIContent> child = newcontent->GetFirstChild();
-      newcontent->RemoveChildAt(0, false);
-      svgNode->InsertChildAt(child, i, true);
+    while (nsCOMPtr<nsIContent> child = newcontent->GetFirstChild()) {
+      newcontent->RemoveChildAt(child, false);
+      svgNode->InsertChild(child, nullptr, true);
+      child = newcontent->GetFirstChild();
     }
 
     newcontent = svgNode;

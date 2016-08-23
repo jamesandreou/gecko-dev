@@ -1104,8 +1104,10 @@ public:
    * @param aChild    The node to fire DOMNodeRemoved at.
    * @param aParent   The parent of aChild.
    * @param aOwnerDoc The ownerDocument of aChild.
+   *
+   * @return true if mutation event fired.
    */
-  static void MaybeFireNodeRemoved(nsINode* aChild, nsINode* aParent,
+  static bool MaybeFireNodeRemoved(nsINode* aChild, nsINode* aParent,
                                    nsIDocument* aOwnerDoc);
 
   /**

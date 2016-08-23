@@ -82,11 +82,11 @@ NS_IMPL_ELEMENT_CLONE_WITH_INIT(SVGSwitchElement)
 // nsINode methods
 
 nsresult
-SVGSwitchElement::InsertChildAt(nsIContent* aKid,
-                                uint32_t aIndex,
+SVGSwitchElement::InsertChild(nsIContent* aKid,
+                                nsIContent* aChildToInsertBefore,
                                 bool aNotify)
 {
-  nsresult rv = SVGSwitchElementBase::InsertChildAt(aKid, aIndex, aNotify);
+  nsresult rv = SVGSwitchElementBase::InsertChild(aKid, aChildToInsertBefore, aNotify);
   if (NS_SUCCEEDED(rv)) {
     MaybeInvalidate();
   }
@@ -94,9 +94,9 @@ SVGSwitchElement::InsertChildAt(nsIContent* aKid,
 }
 
 void
-SVGSwitchElement::RemoveChildAt(uint32_t aIndex, bool aNotify)
+SVGSwitchElement::RemoveChildAt(nsIContent* aChild, bool aNotify)
 {
-  SVGSwitchElementBase::RemoveChildAt(aIndex, aNotify);
+  SVGSwitchElementBase::RemoveChildAt(aChild, aNotify);
   MaybeInvalidate();
 }
 

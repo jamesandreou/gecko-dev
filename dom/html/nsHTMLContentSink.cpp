@@ -434,7 +434,7 @@ SinkContext::Node::Add(nsIContent *child)
   if (mInsertionPoint != -1) {
     NS_ASSERTION(mNumFlushed == mContent->GetChildCount(),
                  "Inserting multiple children without flushing.");
-    mContent->InsertChildAt(child, mInsertionPoint++, false);
+    mContent->InsertChild(child, mContent->GetChildAt(mInsertionPoint++), false);
   } else {
     mContent->AppendChildTo(child, false);
   }

@@ -80,12 +80,13 @@ HTMLOptGroupElement::GetSelect()
 }
 
 nsresult
-HTMLOptGroupElement::InsertChildAt(nsIContent* aKid,
-                                   uint32_t aIndex,
+HTMLOptGroupElement::InsertChild(nsIContent* aKid,
+                                   nsIContent* aChildToInsertBefore,
                                    bool aNotify)
 {
-  SafeOptionListMutation safeMutation(GetSelect(), this, aKid, aIndex, aNotify);
-  nsresult rv = nsGenericHTMLElement::InsertChildAt(aKid, aIndex, aNotify);
+  int32_t index = aChildToInsertBefore ? IndexOf(aChildToInsertBefore) : GetChildCount();
+  SafeOptionListMutation safeMutation(GetSelect(), this, aKid, index, aNotify);
+  nsresult rv = nsGenericHTMLElement::InsertChild(aKid, aChildToInsertBefore, aNotify);
   if (NS_FAILED(rv)) {
     safeMutation.MutationFailed();
   }
@@ -93,11 +94,10 @@ HTMLOptGroupElement::InsertChildAt(nsIContent* aKid,
 }
 
 void
-HTMLOptGroupElement::RemoveChildAt(uint32_t aIndex, bool aNotify)
+HTMLOptGroupElement::RemoveChildAt(nsIContent* aChild, bool aNotify)
 {
-  SafeOptionListMutation safeMutation(GetSelect(), this, nullptr, aIndex,
-                                      aNotify);
-  nsGenericHTMLElement::RemoveChildAt(aIndex, aNotify);
+  SafeOptionListMutation safeMutation(GetSelect(), this, nullptr, IndexOf(aChild), aNotify);
+  nsGenericHTMLElement::RemoveChildAt(aChild, aNotify);
 }
 
 nsresult

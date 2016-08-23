@@ -44,9 +44,9 @@ public:
   virtual nsresult AfterSetAttr(int32_t aNameSpaceID, nsIAtom* aName,
                                 const nsAttrValue* aValue, bool aNotify) override;
 
-  virtual nsresult InsertChildAt(nsIContent* aChild, uint32_t aIndex,
+  virtual nsresult InsertChild(nsIContent* aChild, nsIContent* aChildToInsertBefore,
                                      bool aNotify) override;
-  virtual void RemoveChildAt(uint32_t aIndex, bool aNotify) override;
+  virtual void RemoveChildAt(nsIContent* aChild, bool aNotify) override;
 
   // nsIFormControl
   NS_IMETHOD_(uint32_t) GetType() const override { return NS_FORM_FIELDSET; }

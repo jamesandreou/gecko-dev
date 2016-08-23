@@ -1340,7 +1340,7 @@ nsTextControlFrame::UpdateValueDisplay(bool aNotify,
   }
 
   if (aBeforeEditorInit && value.IsEmpty()) {
-    rootNode->RemoveChildAt(0, true);
+    rootNode->RemoveChildAt(rootNode->GetFirstChild(), true);
     return NS_OK;
   }
 

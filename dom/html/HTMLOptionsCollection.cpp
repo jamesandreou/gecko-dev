@@ -83,7 +83,6 @@ HTMLOptionsCollection::GetOptionIndex(Element* aOption,
       return NS_OK;
     }
   }
-
   return NS_ERROR_FAILURE;
 }
 

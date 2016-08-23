@@ -909,14 +909,12 @@ nsXULContentBuilder::RemoveMember(nsIContent* aContent)
     nsCOMPtr<nsIContent> parent = aContent->GetParent();
     if (parent) {
         int32_t pos = parent->IndexOf(aContent);
-
-        NS_ASSERTION(pos >= 0, "parent doesn't think this child has an index");
+        MOZ_ASSERT(pos >= 0, "Parent doesn't think child has an index");
         if (pos < 0) return NS_OK;
-
-        // Note: RemoveChildAt sets |child|'s document to null so that
+        // Note: RemoveChild sets |child|'s document to null so that
         // it'll get knocked out of the XUL doc's resource-to-element
         // map.
-        parent->RemoveChildAt(pos, true);
+        parent->RemoveChildAt(aContent, true);
     }
 
     // Remove from the content support map.
@@ -1280,11 +1278,10 @@ nsXULContentBuilder::RemoveGeneratedContent(nsIContent* aElement)
         nsCOMPtr<nsIContent> element = ungenerated[last];
         ungenerated.RemoveElementAt(last);
 
-        uint32_t i = element->GetChildCount();
+        nsCOMPtr<nsIContent> child;
 
-        while (i-- > 0) {
-            nsCOMPtr<nsIContent> child = element->GetChildAt(i);
-
+        for (child = element->GetLastChild(); child;
+             child = child->GetPreviousSibling()) {
             // Optimize for the <template> element, because we *know*
             // it won't have any generated content: there's no reason
             // to even check this subtree.
@@ -1309,7 +1306,7 @@ nsXULContentBuilder::RemoveGeneratedContent(nsIContent* aElement)
             }
 
             // If we get here, it's "generated". Bye bye!
-            element->RemoveChildAt(i, true);
+            element->RemoveChildAt(child, true);
 
             // Remove this and any children from the content support map.
             mContentSupportMap.Remove(child);
@@ -1923,7 +1920,7 @@ nsXULContentBuilder::InsertSortedNode(nsIContent* aContainer,
                 temp = child;
                 rv = CompareResultToNode(aResult, temp, &direction);
                 if (direction < 0) {
-                    aContainer->InsertChildAt(aNode, staticCount, aNotify);
+                    aContainer->InsertChild(aNode, child, aNotify);
                     childAdded = true;
                 } else
                     mSortState.lastWasFirst = false;
@@ -1932,7 +1929,7 @@ nsXULContentBuilder::InsertSortedNode(nsIContent* aContainer,
                 temp = child;
                 rv = CompareResultToNode(aResult, temp, &direction);
                 if (direction > 0) {
-                    aContainer->InsertChildAt(aNode, realNumChildren, aNotify);
+                    aContainer->InsertChild(aNode, aContainer->GetChildAt(realNumChildren), aNotify);
                     childAdded = true;
                 } else
                     mSortState.lastWasLast = false;
@@ -1950,7 +1947,7 @@ nsXULContentBuilder::InsertSortedNode(nsIContent* aContainer,
                     left == right)
                 {
                     int32_t thePos = (direction > 0 ? x : x - 1);
-                    aContainer->InsertChildAt(aNode, thePos, aNotify);
+                    aContainer->InsertChild(aNode, aContainer->GetChildAt(thePos), aNotify);
                     childAdded = true;
 
                     mSortState.lastWasFirst = (thePos == staticCount);
@@ -1969,7 +1966,7 @@ nsXULContentBuilder::InsertSortedNode(nsIContent* aContainer,
     // if the child hasn't been inserted yet, just add it at the end. Note
     // that an append isn't done as there may be static content afterwards.
     if (!childAdded)
-        aContainer->InsertChildAt(aNode, numChildren, aNotify);
+        aContainer->InsertChild(aNode, aContainer->GetChildAt(numChildren), aNotify);
 
     return NS_OK;
 }

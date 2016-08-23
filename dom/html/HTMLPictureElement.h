@@ -29,8 +29,8 @@ public:
   NS_DECL_NSIDOMHTMLPICTUREELEMENT
 
   virtual nsresult Clone(mozilla::dom::NodeInfo* aNodeInfo, nsINode** aResult) const override;
-  virtual void RemoveChildAt(uint32_t aIndex, bool aNotify) override;
-  virtual nsresult InsertChildAt(nsIContent* aKid, uint32_t aIndex, bool aNotify) override;
+  virtual void RemoveChildAt(nsIContent* aChild, bool aNotify) override;
+  virtual nsresult InsertChild(nsIContent* aKid, nsIContent* aChildToInsertBefore, bool aNotify) override;
 
   static bool IsPictureEnabled();
 

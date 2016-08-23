@@ -152,7 +152,7 @@ nsINode::nsSlots::Unlink()
   , mParent(nullptr)
   , mBoolFlags(0)
   , mChildCount(0)
-  , mPreviousSibling(nullptr)
+  , mPrevOrLastSibling(nullptr)
   , mSubtreeRoot(this)
   , mSlots(nullptr)
 #ifdef MOZ_STYLO
@@ -578,14 +578,18 @@ nsINode::RemoveChild(nsINode& aOldChild, ErrorResult& aError)
     return nullptr;
   }
 
+  bool dispatchedMutationEvent = false;
   if (aOldChild.GetParentNode() == this) {
-    nsContentUtils::MaybeFireNodeRemoved(&aOldChild, this, OwnerDoc());
-  } else if (IndexOf(&aOldChild) == -1) {
+    dispatchedMutationEvent =
+      nsContentUtils::MaybeFireNodeRemoved(&aOldChild, this, OwnerDoc());
+  }
+  if ((dispatchedMutationEvent || aOldChild.GetParentNode() != this) &&
+      IndexOf(&aOldChild) == -1) {
     aError.Throw(NS_ERROR_DOM_NOT_FOUND_ERR);
     return nullptr;
   }
 
-  doRemoveChild(static_cast<nsIContent*> (&aOldChild), true);
+  RemoveChildAt(aOldChild.AsContent(), true);
   return &aOldChild;
 }
 
@@ -692,7 +696,7 @@ nsINode::Normalize()
                  "Should always have a parent unless "
                  "mutation events messed us up");
     if (parent) {
-      parent->RemoveChildAt(parent->IndexOf(node), true);
+      parent->RemoveChildAt(node, true);
     }
   }
 }
@@ -1645,25 +1649,25 @@ nsINode::doAppendChild(nsIContent* aKid)
   if (mFirstChild) {
     nsIContent* lastChild = GetLastChild();
     lastChild->mNextSibling = aKid;
-    aKid->mPreviousSibling = lastChild;
+    aKid->mPrevOrLastSibling = lastChild;
     // Maintain link to last child
-    mFirstChild->mPreviousSibling = aKid;
+    mFirstChild->mPrevOrLastSibling = aKid;
   } else {
     mFirstChild = aKid;
-    aKid->mPreviousSibling = aKid;
+    aKid->mPrevOrLastSibling = aKid;
   }
 }
 
 void
 nsINode::doInsertBefore(nsIContent* aKid, nsIContent* aChildToInsertBefore)
 {
-  nsIContent* childBefore = aChildToInsertBefore->mPreviousSibling;
+  nsIContent* childBefore = aChildToInsertBefore->mPrevOrLastSibling;
   // We do not link last child to first
   if (aChildToInsertBefore != mFirstChild) {
     childBefore->mNextSibling = aKid;
   }
-  aChildToInsertBefore->mPreviousSibling = aKid;
-  aKid->mPreviousSibling = childBefore;
+  aChildToInsertBefore->mPrevOrLastSibling = aKid;
+  aKid->mPrevOrLastSibling = childBefore;
   aKid->mNextSibling = aChildToInsertBefore;
 }
 
@@ -1728,17 +1732,17 @@ nsIContent*
 nsINode::GetPreviousSibling() const
 {
   // Do not expose circular linked list
-  if (mPreviousSibling && !mPreviousSibling->mNextSibling) {
+  if (mPrevOrLastSibling && !mPrevOrLastSibling->mNextSibling) {
     return nullptr;
   }
-  return mPreviousSibling;
+  return mPrevOrLastSibling;
 }
 
 nsIContent*
 nsINode::GetLastChild() const
 {
   if (mFirstChild) {
-    return mFirstChild->mPreviousSibling;
+    return mFirstChild->mPrevOrLastSibling;
   }
   return nullptr;
 }
@@ -1764,7 +1768,7 @@ nsINode::TakeChild(nsIContent* aKid)
   nsIContent* previousSibling = aKid->GetPreviousSibling();
 
   if (GetLastChild() == aKid) {
-    mFirstChild->mPreviousSibling = aKid->mPreviousSibling;
+    mFirstChild->mPrevOrLastSibling = aKid->mPrevOrLastSibling;
   }
 
   if (mFirstChild == aKid) {
@@ -1776,9 +1780,9 @@ nsINode::TakeChild(nsIContent* aKid)
   }
 
   if (aKid->mNextSibling) {
-    aKid->mNextSibling->mPreviousSibling = aKid->mPreviousSibling;
+    aKid->mNextSibling->mPrevOrLastSibling = aKid->mPrevOrLastSibling;
   }
-  aKid->mPreviousSibling = aKid->mNextSibling = nullptr;
+  aKid->mPrevOrLastSibling = aKid->mNextSibling = nullptr;
 
   mChildCount--;
 
@@ -1990,7 +1994,7 @@ nsINode::Remove()
     return;
   }
 
-  parent->doRemoveChild(static_cast<nsIContent*>(this), true);
+  parent->RemoveChildAt(static_cast<nsIContent*>(this), true);
 }
 
 Element*
@@ -2050,7 +2054,11 @@ nsINode::Append(const Sequence<OwningNodeOrString>& aNodes,
 void
 nsINode::doRemoveChild(nsIContent* aKid, bool aNotify)
 {
+  // Keep child alive until UnbindFromTree is finished.
+  nsCOMPtr<nsIContent> kungfuDeathGrip = aKid;
+
   MOZ_ASSERT(aKid && aKid->GetParentNode() == this, "Bogus aKid");
+  MOZ_ASSERT(IndexOf(aKid) >= 0, "... that's not ours");
   nsMutationGuard::DidMutate();
   mozAutoDocUpdate updateBatch(GetComposedDoc(), UPDATE_CONTENT_MODEL, aNotify);
 
@@ -2370,11 +2378,14 @@ nsINode::ReplaceOrInsertBefore(bool aReplace, nsINode* aNewChild,
       mozAutoDocUpdate batch(newContent->GetComposedDoc(),
                              UPDATE_CONTENT_MODEL, true);
       nsAutoMutationBatch mb(oldParent, true, true);
-      oldParent->RemoveChildAt(removeIndex, true);
+      // Get these pointers for mutation before unlinking newContent
+      nsIContent* prevSibling = newContent->GetPreviousSibling();
+      nsIContent* nextSibling = newContent->GetNextSibling();
+      oldParent->RemoveChildAt(newContent, true);
       if (nsAutoMutationBatch::GetCurrentBatch() == &mb) {
         mb.RemovalDone();
-        mb.SetPrevSibling(oldParent->GetChildAt(removeIndex - 1));
-        mb.SetNextSibling(oldParent->GetChildAt(removeIndex));
+        mb.SetPrevSibling(prevSibling);
+        mb.SetNextSibling(nextSibling);
       }
     }
 
@@ -2450,7 +2461,7 @@ nsINode::ReplaceOrInsertBefore(bool aReplace, nsINode* aNewChild,
       nsAutoMutationBatch mb(newContent, false, true);
 
       for (uint32_t i = count; i > 0;) {
-        newContent->RemoveChildAt(--i, true);
+        newContent->RemoveChildAt(newContent->GetChildAt(--i), true);
       }
     }
 
@@ -2528,7 +2539,7 @@ nsINode::ReplaceOrInsertBefore(bool aReplace, nsINode* aNewChild,
     NS_ASSERTION(aRefChild->GetNextSibling() == nodeToInsertBefore,
                  "Unexpected nodeToInsertBefore");
 
-    doRemoveChild(static_cast<nsIContent*>(aRefChild), true);
+    RemoveChildAt(static_cast<nsIContent*>(aRefChild), true);
   }
 
   // Move new child over to our document if needed. Do this after removing
@@ -2583,7 +2594,7 @@ nsINode::ReplaceOrInsertBefore(bool aReplace, nsINode* aNewChild,
     for (uint32_t i = 0; i < count; ++i) {
       // XXXbz how come no reparenting here?  That seems odd...
       // Insert the child.
-      aError = doInsertChild(fragChildren->ElementAt(i),
+      aError = InsertChild(fragChildren->ElementAt(i),
                              static_cast<nsIContent*>(nodeToInsertBefore), !appending);
       if (aError.Failed()) {
         // Make sure to notify on any children that we did succeed to insert
@@ -2631,7 +2642,7 @@ nsINode::ReplaceOrInsertBefore(bool aReplace, nsINode* aNewChild,
         mb.SetNextSibling(nullptr);
       }
     }
-    aError = doInsertChild(newContent,
+    aError = InsertChild(newContent,
                            static_cast<nsIContent*>(nodeToInsertBefore), true);
     if (aError.Failed()) {
       return nullptr;
@@ -2738,7 +2749,7 @@ nsINode::SizeOfExcludingThis(MallocSizeOf aMallocSizeOf) const
   // - mSlots
   //
   // The following members are not measured:
-  // - mParent, mNextSibling, mPreviousSibling, mFirstChild: because they're
+  // - mParent, mNextSibling, mPrevOrLastSibling, mFirstChild: because they're
   //   non-owning
   return n;
 }

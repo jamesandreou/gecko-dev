@@ -204,13 +204,13 @@ nsAttrAndChildArray::TakeChildAt(uint32_t aPos)
   uint32_t childCount = ChildCount();
   void** pos = mImpl->mBuffer + AttrSlotsSize() + aPos;
   nsIContent* child = static_cast<nsIContent*>(*pos);
-  if (child->mPreviousSibling) {
-    child->mPreviousSibling->mNextSibling = child->mNextSibling;
+  if (child->mPrevOrLastSibling) {
+    child->mPrevOrLastSibling->mNextSibling = child->mNextSibling;
   }
   if (child->mNextSibling) {
-    child->mNextSibling->mPreviousSibling = child->mPreviousSibling;
+    child->mNextSibling->mPrevOrLastSibling = child->mPrevOrLastSibling;
   }
-  child->mPreviousSibling = child->mNextSibling = nullptr;
+  child->mPrevOrLastSibling = child->mNextSibling = nullptr;
 
   memmove(pos, pos + 1, (childCount - aPos - 1) * sizeof(nsIContent*));
   SetChildCount(childCount - 1);
@@ -693,7 +693,7 @@ nsAttrAndChildArray::Clear()
     // to point to each other but keep the kid being removed pointing to them
     // through ContentRemoved so consumers can find where it used to be in the
     // list?
-    child->mPreviousSibling = child->mNextSibling = nullptr;
+    child->mPrevOrLastSibling = child->mNextSibling = nullptr;
     NS_RELEASE(child);
   }
 
@@ -876,13 +876,13 @@ nsAttrAndChildArray::SetChildAtPos(void** aPos, nsIContent* aChild,
   NS_ADDREF(aChild);
   if (aIndex != 0) {
     nsIContent* previous = static_cast<nsIContent*>(*(aPos - 1));
-    aChild->mPreviousSibling = previous;
+    aChild->mPrevOrLastSibling = previous;
     previous->mNextSibling = aChild;
   }
   if (aIndex != aChildCount) {
     nsIContent* next = static_cast<nsIContent*>(*(aPos + 1));
     aChild->mNextSibling = next;
-    next->mPreviousSibling = aChild;
+    next->mPrevOrLastSibling = aChild;
   }
 }
 

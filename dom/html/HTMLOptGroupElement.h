@@ -30,9 +30,9 @@ public:
   NS_DECL_NSIDOMHTMLOPTGROUPELEMENT
 
   // nsINode
-  virtual nsresult InsertChildAt(nsIContent* aKid, uint32_t aIndex,
+  virtual nsresult InsertChild(nsIContent* aKid, nsIContent* aChildToInsertBefore,
                                  bool aNotify) override;
-  virtual void RemoveChildAt(uint32_t aIndex, bool aNotify) override;
+  virtual void RemoveChildAt(nsIContent* aChild, bool aNotify) override;
 
   // nsIContent
   virtual nsresult PreHandleEvent(EventChainPreVisitor& aVisitor) override;

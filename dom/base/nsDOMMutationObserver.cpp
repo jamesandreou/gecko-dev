@@ -373,7 +373,7 @@ nsMutationReceiver::ContentRemoved(nsIDocument* aDocument,
     if (aPreviousSibling) {
       m->mNextSibling = aPreviousSibling->GetNextSibling();
     } else {
-      m->mNextSibling = nullptr;
+      m->mNextSibling = aContainer->GetFirstChild();
     }
   }
   // We need to schedule always, so that after microtask mTransientReceivers

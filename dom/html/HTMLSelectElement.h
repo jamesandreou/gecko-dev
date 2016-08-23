@@ -283,9 +283,9 @@ public:
                      EventChainPostVisitor& aVisitor) override;
 
   virtual bool IsHTMLFocusable(bool aWithMouse, bool* aIsFocusable, int32_t* aTabIndex) override;
-  virtual nsresult InsertChildAt(nsIContent* aKid, uint32_t aIndex,
+  virtual nsresult InsertChild(nsIContent* aKid, nsIContent* aChildToInsertBefore,
                                  bool aNotify) override;
-  virtual void RemoveChildAt(uint32_t aIndex, bool aNotify) override;
+  virtual void RemoveChildAt(nsIContent* aChild, bool aNotify) override;
 
   // Overriden nsIFormControl methods
   NS_IMETHOD_(uint32_t) GetType() const override { return NS_FORM_SELECT; }
