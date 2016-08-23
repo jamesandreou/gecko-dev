@@ -910,10 +910,12 @@ nsXULElement::UnbindFromTree(bool aDeep, bool aNullParent)
 void
 nsXULElement::RemoveChildAt(uint32_t aIndex, bool aNotify)
 {
-    nsCOMPtr<nsIContent> oldKid = mAttrsAndChildren.GetSafeChildAt(aIndex);
+    nsCOMPtr<nsIContent> oldKid = GetChildAt(aIndex);
     if (!oldKid) {
       return;
     }
+    // Keep child alive while unlinking
+    nsCOMPtr<nsIContent> kungfuDeathGrip = aChild;
 
     // On the removal of a <treeitem>, <treechildren>, or <treecell> element,
     // the possibility exists that some of the items in the removed subtree

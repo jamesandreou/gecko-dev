@@ -610,6 +610,7 @@ class nsDocument : public nsIDocument,
 public:
   typedef mozilla::dom::Element Element;
   using nsIDocument::GetElementsByTagName;
+  using nsIDocument::GetLastChild;
   typedef mozilla::net::ReferrerPolicy ReferrerPolicy;
 
   NS_DECL_CYCLE_COLLECTING_ISUPPORTS
@@ -838,7 +839,6 @@ public:
   // nsINode
   virtual bool IsNodeOfType(uint32_t aFlags) const override;
   virtual nsIContent *GetChildAt(uint32_t aIndex) const override;
-  virtual nsIContent * const * GetChildArray(uint32_t* aChildCount) const override;
   virtual int32_t IndexOf(const nsINode* aPossibleChild) const override;
   virtual uint32_t GetChildCount() const override;
   virtual nsresult InsertChildAt(nsIContent* aKid, uint32_t aIndex,

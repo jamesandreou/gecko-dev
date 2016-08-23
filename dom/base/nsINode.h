@@ -24,6 +24,7 @@
 #include "mozilla/dom/DOMString.h"
 #include "mozilla/dom/BindingDeclarations.h"
 #include <iosfwd>
+#include "mozilla/UniquePtr.h"
 
 // Including 'windows.h' will #define GetClassInfo to something else.
 #ifdef XP_WIN
@@ -347,17 +348,7 @@ public:
   friend class nsAttrAndChildArray;
 
 #ifdef MOZILLA_INTERNAL_API
-  explicit nsINode(already_AddRefed<mozilla::dom::NodeInfo>& aNodeInfo)
-  : mNodeInfo(aNodeInfo)
-  , mParent(nullptr)
-  , mBoolFlags(0)
-  , mNextSibling(nullptr)
-  , mPreviousSibling(nullptr)
-  , mFirstChild(nullptr)
-  , mSubtreeRoot(this)
-  , mSlots(nullptr)
-  {
-  }
+  explicit nsINode(already_AddRefed<mozilla::dom::NodeInfo>& aNodeInfo);
 #endif
 
   virtual ~nsINode();
@@ -483,17 +474,6 @@ public:
    * @return the child, or null if index out of bounds
    */
   virtual nsIContent* GetChildAt(uint32_t aIndex) const = 0;
-
-  /**
-   * Get a raw pointer to the child array.  This should only be used if you
-   * plan to walk a bunch of the kids, promise to make sure that nothing ever
-   * mutates (no attribute changes, not DOM tree changes, no script execution,
-   * NOTHING), and will never ever peform an out-of-bounds access here.  This
-   * method may return null if there are no children, or it may return a
-   * garbage pointer.  In all cases the out param will be set to the number of
-   * children.
-   */
-  virtual nsIContent * const * GetChildArray(uint32_t* aChildCount) const = 0;
 
   /**
    * Get the index of a child within this content
@@ -1270,13 +1250,7 @@ public:
 
   virtual nsINodeList* ChildNodes();
   nsIContent* GetFirstChild() const { return mFirstChild; }
-  nsIContent* GetLastChild() const
-  {
-    uint32_t count;
-    nsIContent* const* children = GetChildArray(&count);
-
-    return count > 0 ? children[count - 1] : nullptr;
-  }
+  nsIContent* GetLastChild() const;
 
   /**
    * Implementation is in nsIDocument.h, because it needs to cast from
@@ -1407,7 +1381,7 @@ public:
   nsresult IsEqualNode(nsIDOMNode* aOther, bool* aReturn);
 
   nsIContent* GetNextSibling() const { return mNextSibling; }
-  nsIContent* GetPreviousSibling() const { return mPreviousSibling; }
+  nsIContent* GetPreviousSibling() const;
 
   /**
    * Get the next node in the pre-order tree traversal of the DOM.  If
@@ -2028,29 +2002,53 @@ protected:
   /**
    * Most of the implementation of the nsINode RemoveChildAt method.
    * Should only be called on document, element, and document fragment
-   * nodes.  The aChildArray passed in should be the one for |this|.
+   * nodes.
    *
-   * @param aIndex The index to remove at.
+   * @param aKid The child to remove.
    * @param aNotify Whether to notify.
-   * @param aKid The kid at aIndex.  Must not be null.
-   * @param aChildArray The child array to work with.
-   * @param aMutationEvent whether to fire a mutation event for this removal.
    */
-  void doRemoveChildAt(uint32_t aIndex, bool aNotify, nsIContent* aKid,
-                       nsAttrAndChildArray& aChildArray);
+  void doRemoveChild(nsIContent* aKid, bool aNotify);
+
+  nsIContent* TakeChild(nsIContent* aKid);
+  void UnlinkChild(nsIContent* aKid);
+  void UnlinkAndUnbindAllChildren();
 
   /**
    * Most of the implementation of the nsINode InsertChildAt method.
    * Should only be called on document, element, and document fragment
-   * nodes.  The aChildArray passed in should be the one for |this|.
+   * nodes.
    *
    * @param aKid The child to insert.
-   * @param aIndex The index to insert at.
+   * @param aChildAfter The child to insert before, OR null if appending
    * @param aNotify Whether to notify.
-   * @param aChildArray The child array to work with
    */
-  nsresult doInsertChildAt(nsIContent* aKid, uint32_t aIndex,
-                           bool aNotify, nsAttrAndChildArray& aChildArray);
+  nsresult doInsertChild(nsIContent* aKid,
+                         nsIContent* aChildToInsertBefore, bool aNotify);
+
+  /**
+    * Append a child to the end of the list
+   */
+  void doAppendChild(nsIContent* aKid);
+
+  /**
+    * Insert a child before another child in the list
+   */
+  void doInsertBefore(nsIContent* aKid, nsIContent* aChildToInsertBefore);
+
+  /**
+    * Returns the index position of a child node in the list
+   */
+  int32_t doIndexOfChild(const nsINode* aChild) const;
+
+  /**
+    * Returns the number of children in the list
+   */
+  uint32_t doChildCount() const;
+
+  /**
+    * Returns the child at a given index.
+   */
+  nsIContent* doChildAt(uint32_t aIndex) const;
 
   /**
    * Parse the given selector string into an nsCSSSelectorList.
@@ -2105,15 +2103,16 @@ private:
   // Boolean flags.
   uint32_t mBoolFlags;
 
+  // Number of children in the list
+  uint32_t mChildCount;
+
 protected:
-  // These references are non-owning and safe, as they are managed by
-  // nsAttrAndChildArray.
-  nsIContent* MOZ_NON_OWNING_REF mNextSibling;
+  // mNextSibling and mFirstChild are STRONG pointers while mPreviousSibling is
+  // kept weak. mPreviousSibling will cycle around to the last child on first child
+  // to avoid adding a pointer to last child.
+  nsCOMPtr<nsIContent> mFirstChild;
+  nsCOMPtr<nsIContent> mNextSibling;
   nsIContent* MOZ_NON_OWNING_REF mPreviousSibling;
-  // This reference is non-owning and safe, since in the case of documents,
-  // it is set to null when the document gets destroyed, and in the case of
-  // other nodes, the children keep the parents alive.
-  nsIContent* MOZ_NON_OWNING_REF mFirstChild;
 
   union {
     // Pointer to our primary frame.  Might be null.

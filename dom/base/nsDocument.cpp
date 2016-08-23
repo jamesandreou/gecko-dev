@@ -1614,11 +1614,11 @@ nsDocument::~nsDocument()
 
   nsAutoScriptBlocker scriptBlocker;
 
-  for (uint32_t indx = mChildren.ChildCount(); indx-- != 0; ) {
-    mChildren.ChildAt(indx)->UnbindFromTree();
-    mChildren.RemoveChildAt(indx);
+  nsIContent* child = GetLastChild();
+  while (child) {
+    child->UnbindFromTree();
+    UnlinkChild(child);
   }
-  mFirstChild = nullptr;
   mCachedRootElement = nullptr;
 
   // Let the stylesheets know we're going away
@@ -1798,12 +1798,6 @@ NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN_INTERNAL(nsDocument)
 
   tmp->mExternalResourceMap.Traverse(&cb);
 
-  // Traverse the mChildren nsAttrAndChildArray.
-  for (int32_t indx = int32_t(tmp->mChildren.ChildCount()); indx > 0; --indx) {
-    NS_CYCLE_COLLECTION_NOTE_EDGE_NAME(cb, "mChildren[i]");
-    cb.NoteXPCOMChild(tmp->mChildren.ChildAt(indx - 1));
-  }
-
   // Traverse all nsIDocument pointer members.
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mSecurityInfo)
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mDisplayDocument)
@@ -1920,14 +1914,7 @@ NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN(nsDocument)
   nsAutoScriptBlocker scriptBlocker;
 
   nsINode::Unlink(tmp);
-
-  // Unlink the mChildren nsAttrAndChildArray.
-  for (int32_t indx = int32_t(tmp->mChildren.ChildCount()) - 1;
-       indx >= 0; --indx) {
-    tmp->mChildren.ChildAt(indx)->UnbindFromTree();
-    tmp->mChildren.RemoveChildAt(indx);
-  }
-  tmp->mFirstChild = nullptr;
+  tmp->UnlinkAndUnbindAllChildren();
 
   tmp->UnlinkOriginalDocumentIfStatic();
 
@@ -2176,19 +2163,13 @@ nsDocument::ResetToURI(nsIURI *aURI, nsILoadGroup *aLoadGroup,
 
   bool oldVal = mInUnlinkOrDeletion;
   mInUnlinkOrDeletion = true;
-  uint32_t count = mChildren.ChildCount();
   { // Scope for update
     MOZ_AUTO_DOC_UPDATE(this, UPDATE_CONTENT_MODEL, true);
-    for (int32_t i = int32_t(count) - 1; i >= 0; i--) {
-      nsCOMPtr<nsIContent> content = mChildren.ChildAt(i);
+    while (GetLastChild()) {
+      nsIContent* prevSibling = GetLastChild()->GetPreviousSibling();
+      nsCOMPtr<nsIContent> content = TakeChild(GetLastChild());
 
-      nsIContent* previousSibling = content->GetPreviousSibling();
-
-      if (nsINode::GetFirstChild() == content) {
-        mFirstChild = content->GetNextSibling();
-      }
-      mChildren.RemoveChildAt(i);
-      nsNodeUtils::ContentRemoved(this, content, i, previousSibling);
+      nsNodeUtils::ContentRemoved(this, content, prevSibling);
       content->UnbindFromTree();
     }
     mCachedRootElement = nullptr;
@@ -4015,13 +3996,13 @@ nsDocument::GetRootElementInternal() const
 {
   // Loop backwards because any non-elements, such as doctypes and PIs
   // are likely to appear before the root element.
-  uint32_t i;
-  for (i = mChildren.ChildCount(); i > 0; --i) {
-    nsIContent* child = mChildren.ChildAt(i - 1);
+  nsIContent* child = GetLastChild();
+  while (child) {
     if (child->IsElement()) {
       const_cast<nsDocument*>(this)->mCachedRootElement = child->AsElement();
       return child->AsElement();
     }
+    child = child->GetPreviousSibling();
   }
 
   const_cast<nsDocument*>(this)->mCachedRootElement = nullptr;
@@ -4031,38 +4012,31 @@ nsDocument::GetRootElementInternal() const
 nsIContent *
 nsDocument::GetChildAt(uint32_t aIndex) const
 {
-  return mChildren.GetSafeChildAt(aIndex);
+  return doChildAt(aIndex);
 }
 
 int32_t
 nsDocument::IndexOf(const nsINode* aPossibleChild) const
 {
-  return mChildren.IndexOfChild(aPossibleChild);
+  return doIndexOfChild(aPossibleChild);
 }
 
 uint32_t
 nsDocument::GetChildCount() const
 {
-  return mChildren.ChildCount();
+  return doChildCount();
 }
-
-nsIContent * const *
-nsDocument::GetChildArray(uint32_t* aChildCount) const
-{
-  return mChildren.GetChildArray(aChildCount);
-}
-
 
 nsresult
-nsDocument::InsertChildAt(nsIContent* aKid, uint32_t aIndex,
-                          bool aNotify)
+nsDocument::InsertChildAt(nsIContent* aKid, uint32_t aIndex, bool aNotify)
 {
   if (aKid->IsElement() && GetRootElement()) {
     NS_WARNING("Inserting root element when we already have one");
     return NS_ERROR_DOM_HIERARCHY_REQUEST_ERR;
   }
 
-  return doInsertChildAt(aKid, aIndex, aNotify, mChildren);
+  nsIContent* childToInsertBefore = GetChildAt(aIndex);
+  return doInsertChild(aKid, childToInsertBefore, aNotify);
 }
 
 void
@@ -4078,7 +4052,7 @@ nsDocument::RemoveChildAt(uint32_t aIndex, bool aNotify)
     DestroyElementMaps();
   }
 
-  doRemoveChildAt(aIndex, aNotify, oldKid, mChildren);
+  doRemoveChild(oldKid, aNotify);
   mCachedRootElement = nullptr;
 }
 
@@ -8954,9 +8928,10 @@ nsDocument::Destroy()
 
   bool oldVal = mInUnlinkOrDeletion;
   mInUnlinkOrDeletion = true;
-  uint32_t i, count = mChildren.ChildCount();
-  for (i = 0; i < count; ++i) {
-    mChildren.ChildAt(i)->DestroyContent();
+  nsIContent* child = mFirstChild;
+  while (child) {
+    child->DestroyContent();
+    child = child->GetNextSibling();
   }
   mInUnlinkOrDeletion = oldVal;
 
@@ -8979,9 +8954,10 @@ nsDocument::RemovedFromDocShell()
   mRemovedFromDocShell = true;
   EnumerateActivityObservers(NotifyActivityChanged, nullptr);
 
-  uint32_t i, count = mChildren.ChildCount();
-  for (i = 0; i < count; ++i) {
-    mChildren.ChildAt(i)->SaveSubtreeState();
+  nsIContent* child = mFirstChild;
+  while (child) {
+    child->SaveSubtreeState();
+    child = child->GetNextSibling();
   }
 }
 

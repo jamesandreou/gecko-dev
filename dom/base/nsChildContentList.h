@@ -10,6 +10,7 @@
 #include "nsISupportsImpl.h"
 #include "nsINodeList.h"            // base class
 #include "js/TypeDecls.h"     // for Handle, Value, JSObject, JSContext
+#include "mozilla/dom/NodeIndexCache.h"
 
 class nsIContent;
 class nsINode;
@@ -46,6 +47,10 @@ public:
     mNode = nullptr;
   }
 
+  mozilla::dom::NodeIndexCache& GetNodeIndexCache() {
+    return mNodeIndexCache;
+  }
+
   virtual nsINode* GetParentObject() override
   {
     return mNode;
@@ -58,6 +63,9 @@ private:
   // This is a non-owning ref which is safe because it's set to nullptr by
   // DropReference() by the node slots get destroyed.
   nsINode* MOZ_NON_OWNING_REF mNode;
+
+  mozilla::dom::NodeIndexCache mNodeIndexCache;
+
 };
 
 #endif /* nsChildContentList_h__ */

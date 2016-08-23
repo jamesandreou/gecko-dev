@@ -107,6 +107,7 @@
 #include "GeometryUtils.h"
 #include "nsIAnimationObserver.h"
 #include "nsChildContentList.h"
+#include "NodeIndexCache.h"
 
 using namespace mozilla;
 using namespace mozilla::dom;
@@ -144,6 +145,22 @@ nsINode::nsSlots::Unlink()
 }
 
 //----------------------------------------------------------------------
+
+#ifdef MOZILLA_INTERNAL_API
+  nsINode::nsINode(already_AddRefed<mozilla::dom::NodeInfo>& aNodeInfo)
+  : mNodeInfo(aNodeInfo)
+  , mParent(nullptr)
+  , mBoolFlags(0)
+  , mChildCount(0)
+  , mPreviousSibling(nullptr)
+  , mSubtreeRoot(this)
+  , mSlots(nullptr)
+#ifdef MOZ_STYLO
+  , mServoNodeData(nullptr)
+#endif
+  {
+  }
+#endif
 
 nsINode::~nsINode()
 {
@@ -563,16 +580,12 @@ nsINode::RemoveChild(nsINode& aOldChild, ErrorResult& aError)
 
   if (aOldChild.GetParentNode() == this) {
     nsContentUtils::MaybeFireNodeRemoved(&aOldChild, this, OwnerDoc());
-  }
-
-  int32_t index = IndexOf(&aOldChild);
-  if (index == -1) {
-    // aOldChild isn't one of our children.
+  } else if (IndexOf(&aOldChild) == -1) {
     aError.Throw(NS_ERROR_DOM_NOT_FOUND_ERR);
     return nullptr;
   }
 
-  RemoveChildAt(index, true);
+  doRemoveChild(static_cast<nsIContent*> (&aOldChild), true);
   return &aOldChild;
 }
 
@@ -1429,6 +1442,8 @@ nsINode::Traverse(nsINode *tmp, nsCycleCollectionTraversalCallback &cb)
   }
 
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mNodeInfo)
+  NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mFirstChild)
+  NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mNextSibling)
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE_RAWPTR(GetParent())
 
   nsSlots *slots = tmp->GetExistingSlots();
@@ -1549,11 +1564,9 @@ CheckForOutdatedParent(nsINode* aParent, nsINode* aNode)
 }
 
 nsresult
-nsINode::doInsertChildAt(nsIContent* aKid, uint32_t aIndex,
-                         bool aNotify, nsAttrAndChildArray& aChildArray)
+nsINode::doInsertChild(nsIContent* aKid, nsIContent* aChildToInsertBefore, bool aNotify)
 {
-  NS_PRECONDITION(!aKid->GetParentNode(),
-                  "Inserting node that already has parent");
+  MOZ_ASSERT(!aKid->GetParentNode(), "Inserting node that already has parent");
   nsresult rv;
 
   // The id-handling code, and in the future possibly other code, need to
@@ -1572,41 +1585,45 @@ nsINode::doInsertChildAt(nsIContent* aKid, uint32_t aIndex,
     NS_ENSURE_SUCCESS(rv, rv);
   }
 
-  uint32_t childCount = aChildArray.ChildCount();
-  NS_ENSURE_TRUE(aIndex <= childCount, NS_ERROR_ILLEGAL_VALUE);
-  bool isAppend = (aIndex == childCount);
+  bool isAppend = !aChildToInsertBefore;
 
-  rv = aChildArray.InsertChildAt(aKid, aIndex);
-  NS_ENSURE_SUCCESS(rv, rv);
-  if (aIndex == 0) {
+  if (isAppend) {
+    doAppendChild(aKid);
+  } else {
+    doInsertBefore(aKid, aChildToInsertBefore);
+  }
+
+  if (aChildToInsertBefore == mFirstChild) {
     mFirstChild = aKid;
+  }
+
+  mChildCount++;
+
+  nsSlots* slots = GetExistingSlots();
+  if (slots && slots->mChildNodes) {
+    slots->mChildNodes->GetNodeIndexCache().InvalidateCache();
   }
 
   nsIContent* parent =
     IsNodeOfType(eDOCUMENT) ? nullptr : static_cast<nsIContent*>(this);
 
   rv = aKid->BindToTree(doc, parent,
-                        parent ? parent->GetBindingParent() : nullptr,
-                        true);
+                        parent ? parent->GetBindingParent() : nullptr, true);
   if (NS_FAILED(rv)) {
-    if (GetFirstChild() == aKid) {
-      mFirstChild = aKid->GetNextSibling();
-    }
-    aChildArray.RemoveChildAt(aIndex);
+    UnlinkChild(aKid);
     aKid->UnbindFromTree();
     return rv;
   }
 
-  NS_ASSERTION(aKid->GetParentNode() == this,
-               "Did we run script inappropriately?");
+  MOZ_ASSERT(aKid->GetParentNode() == this, "Did we run script inappropriately?");
 
   if (aNotify) {
     // Note that we always want to call ContentInserted when things are added
     // as kids to documents
     if (parent && isAppend) {
-      nsNodeUtils::ContentAppended(parent, aKid, aIndex);
+      nsNodeUtils::ContentAppended(parent, aKid);
     } else {
-      nsNodeUtils::ContentInserted(this, aKid, aIndex);
+      nsNodeUtils::ContentInserted(this, aKid);
     }
 
     if (nsContentUtils::HasMutationListeners(aKid,
@@ -1620,6 +1637,157 @@ nsINode::doInsertChildAt(nsIContent* aKid, uint32_t aIndex,
   }
 
   return NS_OK;
+}
+
+void
+nsINode::doAppendChild(nsIContent* aKid)
+{
+  if (mFirstChild) {
+    nsIContent* lastChild = GetLastChild();
+    lastChild->mNextSibling = aKid;
+    aKid->mPreviousSibling = lastChild;
+    // Maintain link to last child
+    mFirstChild->mPreviousSibling = aKid;
+  } else {
+    mFirstChild = aKid;
+    aKid->mPreviousSibling = aKid;
+  }
+}
+
+void
+nsINode::doInsertBefore(nsIContent* aKid, nsIContent* aChildToInsertBefore)
+{
+  nsIContent* childBefore = aChildToInsertBefore->mPreviousSibling;
+  // We do not link last child to first
+  if (aChildToInsertBefore != mFirstChild) {
+    childBefore->mNextSibling = aKid;
+  }
+  aChildToInsertBefore->mPreviousSibling = aKid;
+  aKid->mPreviousSibling = childBefore;
+  aKid->mNextSibling = aChildToInsertBefore;
+}
+
+int32_t
+nsINode::doIndexOfChild(const nsINode* aChild) const
+{
+  if (!aChild) {
+    return -1;
+  }
+  if (aChild == mFirstChild) {
+    return 0;
+  }
+  if (aChild == GetLastChild()) {
+    return mChildCount - 1;
+  }
+  // Walk the child list until index is reached
+  int32_t ind = 0;
+  nsIContent* walkChild = mFirstChild;
+  while (walkChild) {
+    if (walkChild == aChild){
+      return ind;
+    }
+    ind++;
+    walkChild = walkChild->mNextSibling;
+  }
+  return -1;
+}
+
+nsIContent*
+nsINode::doChildAt(uint32_t aIndex) const
+{
+  if (aIndex >= mChildCount){
+    return nullptr;
+  }
+
+  // Use cache if available
+  nsSlots* slots = GetExistingSlots();
+  if (slots && slots->mChildNodes) {
+    return slots->mChildNodes->GetNodeIndexCache().GetChildAt(aIndex, this);
+  }
+
+  // Walk slowly to child if no cache
+  uint32_t ind = 0;
+  nsIContent* walkChild = GetFirstChild();
+  while (walkChild) {
+    if (ind == aIndex) {
+      return walkChild;
+    }
+    ind++;
+    walkChild = walkChild->GetNextSibling();
+  }
+  return nullptr;
+}
+
+uint32_t
+nsINode::doChildCount() const
+{
+  return mChildCount;
+}
+
+nsIContent*
+nsINode::GetPreviousSibling() const
+{
+  // Do not expose circular linked list
+  if (mPreviousSibling && !mPreviousSibling->mNextSibling) {
+    return nullptr;
+  }
+  return mPreviousSibling;
+}
+
+nsIContent*
+nsINode::GetLastChild() const
+{
+  if (mFirstChild) {
+    return mFirstChild->mPreviousSibling;
+  }
+  return nullptr;
+}
+
+void
+nsINode::UnlinkAndUnbindAllChildren()
+{
+  while (GetLastChild()) {
+    nsCOMPtr<nsIContent> child = TakeChild(GetLastChild());
+    child->UnbindFromTree();
+  }
+}
+
+void
+nsINode::UnlinkChild(nsIContent* aKid)
+{
+  nsCOMPtr<nsIContent> childRemoved = TakeChild(aKid);
+}
+
+nsIContent*
+nsINode::TakeChild(nsIContent* aKid)
+{
+  nsIContent* previousSibling = aKid->GetPreviousSibling();
+
+  if (GetLastChild() == aKid) {
+    mFirstChild->mPreviousSibling = aKid->mPreviousSibling;
+  }
+
+  if (mFirstChild == aKid) {
+    mFirstChild = mFirstChild->mNextSibling;
+  }
+
+  if (previousSibling) {
+    previousSibling->mNextSibling = aKid->mNextSibling;
+  }
+
+  if (aKid->mNextSibling) {
+    aKid->mNextSibling->mPreviousSibling = aKid->mPreviousSibling;
+  }
+  aKid->mPreviousSibling = aKid->mNextSibling = nullptr;
+
+  mChildCount--;
+
+  nsSlots* slots = GetExistingSlots();
+  if (slots && slots->mChildNodes) {
+    slots->mChildNodes->GetNodeIndexCache().InvalidateCache();
+  }
+
+  return aKid;
 }
 
 Element*
@@ -1818,12 +1986,11 @@ nsINode::Remove()
   if (!parent) {
     return;
   }
-  int32_t index = parent->IndexOf(this);
-  if (index < 0) {
-    NS_WARNING("Ignoring call to nsINode::Remove on anonymous child.");
+  if (parent != this && parent->IndexOf(this) < 0) {
     return;
   }
-  parent->RemoveChildAt(uint32_t(index), true);
+
+  parent->doRemoveChild(static_cast<nsIContent*>(this), true);
 }
 
 Element*
@@ -1881,26 +2048,17 @@ nsINode::Append(const Sequence<OwningNodeOrString>& aNodes,
 }
 
 void
-nsINode::doRemoveChildAt(uint32_t aIndex, bool aNotify,
-                         nsIContent* aKid, nsAttrAndChildArray& aChildArray)
+nsINode::doRemoveChild(nsIContent* aKid, bool aNotify)
 {
-  NS_PRECONDITION(aKid && aKid->GetParentNode() == this &&
-                  aKid == GetChildAt(aIndex) &&
-                  IndexOf(aKid) == (int32_t)aIndex, "Bogus aKid");
-
+  MOZ_ASSERT(aKid && aKid->GetParentNode() == this, "Bogus aKid");
   nsMutationGuard::DidMutate();
   mozAutoDocUpdate updateBatch(GetComposedDoc(), UPDATE_CONTENT_MODEL, aNotify);
 
   nsIContent* previousSibling = aKid->GetPreviousSibling();
-
-  if (GetFirstChild() == aKid) {
-    mFirstChild = aKid->GetNextSibling();
-  }
-
-  aChildArray.RemoveChildAt(aIndex);
+  UnlinkChild(aKid);
 
   if (aNotify) {
-    nsNodeUtils::ContentRemoved(this, aKid, aIndex, previousSibling);
+    nsNodeUtils::ContentRemoved(this, aKid, previousSibling);
   }
 
   aKid->UnbindFromTree();
@@ -2361,23 +2519,6 @@ nsINode::ReplaceOrInsertBefore(bool aReplace, nsINode* aNewChild,
   mozAutoDocUpdate batch(GetComposedDoc(), UPDATE_CONTENT_MODEL, true);
   nsAutoMutationBatch mb;
 
-  // Figure out which index we want to insert at.  Note that we use
-  // nodeToInsertBefore to determine this, because it's possible that
-  // aRefChild == aNewChild, in which case we just removed it from the
-  // parent list.
-  int32_t insPos;
-  if (nodeToInsertBefore) {
-    insPos = IndexOf(nodeToInsertBefore);
-    if (insPos < 0) {
-      // XXXbz How the heck would _that_ happen, exactly?
-      aError.Throw(NS_ERROR_DOM_NOT_FOUND_ERR);
-      return nullptr;
-    }
-  }
-  else {
-    insPos = GetChildCount();
-  }
-
   // If we're replacing and we haven't removed aRefChild yet, do so now
   if (aReplace && aRefChild != aNewChild) {
     mb.Init(this, true, true);
@@ -2387,11 +2528,7 @@ nsINode::ReplaceOrInsertBefore(bool aReplace, nsINode* aNewChild,
     NS_ASSERTION(aRefChild->GetNextSibling() == nodeToInsertBefore,
                  "Unexpected nodeToInsertBefore");
 
-    // An since nodeToInsertBefore is at index insPos, we want to remove
-    // at the previous index.
-    NS_ASSERTION(insPos >= 1, "insPos too small");
-    RemoveChildAt(insPos-1, true);
-    --insPos;
+    doRemoveChild(static_cast<nsIContent*>(aRefChild), true);
   }
 
   // Move new child over to our document if needed. Do this after removing
@@ -2425,8 +2562,13 @@ nsINode::ReplaceOrInsertBefore(bool aReplace, nsINode* aNewChild,
     nsAutoMutationBatch* mutationBatch = nsAutoMutationBatch::GetCurrentBatch();
     if (mutationBatch) {
       mutationBatch->RemovalDone();
-      mutationBatch->SetPrevSibling(GetChildAt(insPos - 1));
-      mutationBatch->SetNextSibling(GetChildAt(insPos));
+      if (nodeToInsertBefore) {
+        mutationBatch->SetPrevSibling(nodeToInsertBefore->GetPreviousSibling());
+        mutationBatch->SetNextSibling(nodeToInsertBefore);
+      } else {
+        mutationBatch->SetPrevSibling(GetLastChild());
+        mutationBatch->SetNextSibling(nullptr);
+      }
     }
 
     uint32_t count = fragChildren->Length();
@@ -2434,24 +2576,20 @@ nsINode::ReplaceOrInsertBefore(bool aReplace, nsINode* aNewChild,
       return result;
     }
 
-    bool appending =
-      !IsNodeOfType(eDOCUMENT) && uint32_t(insPos) == GetChildCount();
-    int32_t firstInsPos = insPos;
+    bool appending = !IsNodeOfType(eDOCUMENT) && !nodeToInsertBefore;
     nsIContent* firstInsertedContent = fragChildren->ElementAt(0);
 
-    // Iterate through the fragment's children, and insert them in the new
-    // parent
-    for (uint32_t i = 0; i < count; ++i, ++insPos) {
+    // Iterate through the fragment's children, and insert them in the new parent
+    for (uint32_t i = 0; i < count; ++i) {
       // XXXbz how come no reparenting here?  That seems odd...
       // Insert the child.
-      aError = InsertChildAt(fragChildren->ElementAt(i), insPos,
-                             !appending);
+      aError = doInsertChild(fragChildren->ElementAt(i),
+                             static_cast<nsIContent*>(nodeToInsertBefore), !appending);
       if (aError.Failed()) {
         // Make sure to notify on any children that we did succeed to insert
         if (appending && i != 0) {
           nsNodeUtils::ContentAppended(static_cast<nsIContent*>(this),
-                                       firstInsertedContent,
-                                       firstInsPos);
+                                       firstInsertedContent);
         }
         return nullptr;
       }
@@ -2464,7 +2602,7 @@ nsINode::ReplaceOrInsertBefore(bool aReplace, nsINode* aNewChild,
     // Notify and fire mutation events when appending
     if (appending) {
       nsNodeUtils::ContentAppended(static_cast<nsIContent*>(this),
-                                   firstInsertedContent, firstInsPos);
+                                   firstInsertedContent);
       if (mutationBatch) {
         mutationBatch->NodesAdded();
       }
@@ -2485,10 +2623,16 @@ nsINode::ReplaceOrInsertBefore(bool aReplace, nsINode* aNewChild,
 
     if (nsAutoMutationBatch::GetCurrentBatch() == &mb) {
       mb.RemovalDone();
-      mb.SetPrevSibling(GetChildAt(insPos - 1));
-      mb.SetNextSibling(GetChildAt(insPos));
+      if (nodeToInsertBefore) {
+        mb.SetPrevSibling(nodeToInsertBefore->GetPreviousSibling());
+        mb.SetNextSibling(nodeToInsertBefore);
+      } else {
+        mb.SetPrevSibling(GetLastChild());
+        mb.SetNextSibling(nullptr);
+      }
     }
-    aError = InsertChildAt(newContent, insPos, true);
+    aError = doInsertChild(newContent,
+                           static_cast<nsIContent*>(nodeToInsertBefore), true);
     if (aError.Failed()) {
       return nullptr;
     }

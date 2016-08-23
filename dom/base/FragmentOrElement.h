@@ -116,7 +116,6 @@ public:
   // nsINode interface methods
   virtual uint32_t GetChildCount() const override;
   virtual nsIContent *GetChildAt(uint32_t aIndex) const override;
-  virtual nsIContent * const * GetChildArray(uint32_t* aChildCount) const override;
   virtual int32_t IndexOf(const nsINode* aPossibleChild) const override;
   virtual nsresult InsertChildAt(nsIContent* aKid, uint32_t aIndex,
                                  bool aNotify) override;
@@ -200,7 +199,7 @@ public:
     if (GetParent()) {
       --rc;
     }
-    rc -= mAttrsAndChildren.ChildCount();
+    rc -= GetChildCount();
     return rc == 0;
   }
 
